@@ -1,7 +1,4 @@
 <?php
-//password = omzpwzCPHrpayUiB
-// $dsn = "pgsql:host=db.jomzzddiybsqwrkhfyap.supabase.co;port=5432;dbname=postgres;user=postgres;password=omzpwzCPHrpayUiB;sslmode=require";
-// $dsn = "postgresql://postgres:omzpwzCPHrpayUiB@db.jomzzddiybsqwrkhfyap.supabase.co:5432/postgres";
 
 $host     = "";
 $db       = "";
