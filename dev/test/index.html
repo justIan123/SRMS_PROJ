@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+<body>
+
+    <!-- 1. Primary Target -->
+    <div id="main-status"></div>
+
+    <!-- 2. Secondary Target (e.g., Counter) -->
+    <div id="counter">Total Submissions: 0</div>
+
+    <!-- 3. Tertiary Target (e.g., Log Area) -->
+    <div hidden id="activity-log">Recent Activity: None</div>
+
+    <form hx-post="process.php" hx-target="#main-status">
+        <input type="text" name="username" placeholder="Enter username">
+        <button type="submit">Submit</button>
+    </form>
+
+</body>
+</html>

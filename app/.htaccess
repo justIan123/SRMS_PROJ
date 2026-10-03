@@ -1,0 +1,32 @@
+# https://www.w3schools.com/tools/tool_htaccess.php
+RewriteEngine On
+RewriteBase /1_SRMS/app/
+
+# Prevent 403 Forbidden on folder requests by allowing directory options
+Options +FollowSymLinks -Indexes
+
+# Default page for /1_SRMS/app/
+DirectoryIndex login_page.php
+
+# Redirect external requests with .php extension to clean URL
+RewriteCond %{THE_REQUEST} \s/app/([^\s?]+)\.php [NC]
+RewriteRule ^app/(.+)\.php$ /1_SRMS/app/$1 [R=301,L]
+
+# Internally route extensionless URLs to their actual .php file
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}\.php -f
+RewriteRule ^(.+)$ $1.php [L]
+
+# Internally route extensionless URLs to their actual .html file
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}\.html -f
+RewriteRule ^(.+)$ $1.html [L]
+
+# hide err from the browser so that the user cant see the code err except the dev
+# php_flag display_errors off
+# php_flag display_startup_errors off 
+
+# Error pages
+ErrorDocument 404 /1_SRMS/app/err/404.html
+ErrorDocument 403 /1_SRMS/app/err/403.html
+ErrorDocument 500 /1_SRMS/app/err/500.html
