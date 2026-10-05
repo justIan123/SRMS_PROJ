@@ -1,11 +1,10 @@
 <?php
 require_once("../public/index.php");
+// require_once(COMPONENTS_PATH . DS . "header.php");
+// require_once(COMPONENTS_PATH . DS . "navbar.php");
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 require_once(INCLUDE_PATH . DS . "auth.php");
 ?>
-<h2>Welcome, <?= htmlspecialchars($_SESSION['user']) ?>!</h2>
-
-<a href="logout_page.php">Logout</a>
 
 
 <!DOCTYPE html>
@@ -42,8 +41,19 @@ require_once(INCLUDE_PATH . DS . "auth.php");
     }
   </style>
 </head>
-<body class="p-3">
+<body>
 
+  <div
+    hx-get=" <?= BASE_URL . DS . "/components/header.php"?>"
+    hx-trigger="load"
+    hx-swap="outerHTML"
+    >
+      Loading...
+  </div>
+
+  <h2>Welcome, <?= htmlspecialchars($_SESSION['user']) ?>!</h2>
+  <a href="logout_page.php">Logout</a>  
+  
   <!-- Wrapper -->
   <div id="main-wrapper" style="position:relative;">
 
@@ -81,3 +91,13 @@ require_once(INCLUDE_PATH . DS . "auth.php");
   <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 </body>
 </html>
+
+<!-- RUKLE OF THUMB -->
+<!--
+When using htmx
+when get a request and the target is the other div use hx-indicator="#global-spinner
+for load the page dynamically
+
+hx-indicator is an HTMX attribute that lets you specify which element(s) should receive the htmx-request
+CSS class during an HTMX request, enabling spinners or loading indicators to appear only while the request is loading
+-->

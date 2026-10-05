@@ -45,11 +45,11 @@ require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="formEmail">Email address</label>
-                        <input name="email" class="form-control" type="email" placeholder="Enter email"/>
+                        <input name="email" class="form-control" type="email" placeholder="Enter email" required/>
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="formPassword">Password</label>
-                        <input name="password" class="form-control" type="password" placeholder="Password"/>
+                        <input name="password" class="form-control" type="password" placeholder="Password" minlength="8" required/>
                     </div>
                     <div class="mb-3">
                         <?= renderAlert((!empty($err) ? $err: ""), "warning") ?>
