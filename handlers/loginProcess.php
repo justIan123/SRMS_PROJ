@@ -8,7 +8,7 @@ require_once(FUNCTIONS_PATH . DS . "setErrorFunctions.php");
 require_once(DEBUG_PATH . "debugFunctions.php");
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $email = sanitize($_POST['email']);
+    $email = sanitize($_POST['email'], 'string');
     $password = $_POST['password'];
 
     //create a password checker that checks if the password is 8 chars long
@@ -21,7 +21,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     try{
         $stmt = $pdo->prepare("SELECT * FROM users WHERE email = :email");
         $stmt->execute([
-            'email' => $email
+            ':email' => $email
         ]);
         $user = $stmt->fetch();
     

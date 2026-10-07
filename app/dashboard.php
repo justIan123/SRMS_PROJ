@@ -22,11 +22,12 @@ require_once(INCLUDE_PATH . DS . "auth.php");
     #global-spinner {
       display: none;
       position: absolute;
-      top:0; left:0; width:100%; height:100%;
+      top:0; left:0; width: 5rem; height: 5rem;
       background: rgb(255, 255, 255);
       justify-content: center;
       align-items: center;
       z-index: 10;
+      
     }
 
     /* HTMX adds .htmx-request while loading */
@@ -100,12 +101,26 @@ require_once(INCLUDE_PATH . DS . "auth.php");
       <a href="#" class="mb-3 link-body-emphasis text-decoration-none fs-5 fw-semibold"><i class="bi bi-hexagon-half me-2"></i>SRMS</a>
       <!-- LINK LISTS -->
       <ul class="nav nav-pills flex-column mb-auto">
-        <li class="nav-item"><a class="nav-link " aria-current="page" href="#"><i class="bi bi-speedometer2 me-2"></i>Dashboard</a></li>
+
+        <li class="nav-item">
+          <div class="nav-link btn text-start active"
+            hx-get="<?= COMPONENTS_URL . 'dashboard_content.php' ?>"
+            hx-target="#main"
+            hx-swap="innerHTML"
+            hx-indicator="#global-spinner"
+            onclick="setActive(this)"
+            >
+            <!-- hx-trigger="load" means to load this page automatically -->
+              <i class="bi bi-speedometer2 me-2"></i>
+              Dashboard
+          </div>
+        </li>
+
 
         <li class="nav-item">
           <!-- i hate this onclick -->
           <div class="nav-link btn text-start"
-            hx-get="<?= COMPONENTS_URL . 'dashboard_content.php' ?>"
+            hx-get="<?= COMPONENTS_URL . 'manage_users.php' ?>"
             hx-target="#main"
             hx-swap="innerHTML"
             hx-indicator="#global-spinner"
@@ -116,23 +131,36 @@ require_once(INCLUDE_PATH . DS . "auth.php");
           </div>
         </li>
 
+        <!-- <li class="nav-item">
+
+          <div class="nav-link btn text-start"
+            hx-get="<?= COMPONENTS_URL . 'test.php' ?>"
+            hx-target="#main"
+            hx-swap="innerHTML"
+            hx-indicator="#global-spinner"
+            onclick="setActive(this)"
+            >
+              <i class="bi bi-cart me-2"></i>
+              test
+          </div>
+        </li> -->
+
         <li class="nav-item"><a class="nav-link" href="#"><i class="bi bi-box-seam me-2"></i>Products</a></li>
         <li class="nav-item"><a class="nav-link" href="#"><i class="bi bi-people me-2"></i>Customers</a></li>
         <li class="nav-item"><a class="nav-link" href="#"><i class="bi bi-graph-up me-2"></i>Reports</a></li>
         <li class="nav-item"><a class="nav-link" href="logout_page"><i class="bi bi-door-closed me-2"></i>Logout</a></li>
       </ul>
     </nav>
-      <header>
-          <button class="btn btn-outline-secondary" onclick="document.getElementById('pushSidebar').classList.toggle('collapsed')" aria-label="Toggle sidebar" aria-expanded="true">
-              <i class="bi bi-list"></i>
-          </button>
+    <header class="container-fluid">
+      <!-- close navbar -->
+      <button class="btn btn-outline-secondary" onclick="document.getElementById('pushSidebar').classList.toggle('collapsed')" aria-label="Toggle sidebar" aria-expanded="true">
+          <i class="bi bi-list"></i>
+      </button>
       
 
       <!-- MAIN -->
 
-      <!-- Wrapper -->
-
-      <div id="main-wrapper" style="position:relative;">
+      <div class="container-fluid" id="main-wrapper" style="position:relative;">
 
         <!-- Spinner overlay -->
         <div id="global-spinner">
@@ -141,12 +169,21 @@ require_once(INCLUDE_PATH . DS . "auth.php");
           </div>
         </div>
 
-        <!-- Content area -->
+        <!-- nontent area -->
         <div class="container-fluid" id="main" class="mt-3 border p-3">
-          <h4>Dashboard Content</h4>
-          <p>Click a button to load content.</p>
+          <!-- page loads this automatically loads so, when page loads no empty dashboard -->
+          <div class="nav-link btn text-start active"
+            hx-get="<?= COMPONENTS_URL . 'dashboard_content.php' ?>"
+            hx-target="#main"
+            hx-swap="innerHTML"
+            hx-indicator="#global-spinner"
+            hx-trigger="load"
+            >
+            <!-- hx-trigger="load" means to load this page automatically -->
+          </div>
         </div>
       </div>
+
     </header>
   </div>
 
@@ -211,4 +248,5 @@ function setActive(el) {
 
   el.classList.add('active');
 }
+
 </script>
