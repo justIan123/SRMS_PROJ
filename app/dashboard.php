@@ -21,11 +21,7 @@ require_once(INCLUDE_PATH . DS . "auth.php");
     /* Hide spinner initially */
     #global-spinner {
       display: none;
-      position: absolute;
-      top:0; left:0; width: 5rem; height: 5rem;
-      background: rgb(255, 255, 255);
-      justify-content: center;
-      align-items: center;
+      top:0; left:0;
       z-index: 10;
       
     }
@@ -126,24 +122,24 @@ require_once(INCLUDE_PATH . DS . "auth.php");
             hx-indicator="#global-spinner"
             onclick="setActive(this)"
             >
-              <i class="bi bi-cart me-2"></i>
-              Orders
+            <i class="bi bi-person-add me-2"></i>
+              Add Teachers
           </div>
         </li>
 
-        <!-- <li class="nav-item">
+        <li class="nav-item">
 
           <div class="nav-link btn text-start"
-            hx-get="<?= COMPONENTS_URL . 'test.php' ?>"
+            hx-get="<?= COMPONENTS_URL . 'manage_guardians.php' ?>"
             hx-target="#main"
             hx-swap="innerHTML"
             hx-indicator="#global-spinner"
             onclick="setActive(this)"
             >
-              <i class="bi bi-cart me-2"></i>
-              test
+            <i class="bi bi-person-add me-2"></i>
+              Add Guardians
           </div>
-        </li> -->
+        </li>
 
         <li class="nav-item"><a class="nav-link" href="#"><i class="bi bi-box-seam me-2"></i>Products</a></li>
         <li class="nav-item"><a class="nav-link" href="#"><i class="bi bi-people me-2"></i>Customers</a></li>
@@ -152,25 +148,31 @@ require_once(INCLUDE_PATH . DS . "auth.php");
       </ul>
     </nav>
     <header class="container-fluid">
-      <!-- close navbar -->
-      <button class="btn btn-outline-secondary" onclick="document.getElementById('pushSidebar').classList.toggle('collapsed')" aria-label="Toggle sidebar" aria-expanded="true">
-          <i class="bi bi-list"></i>
-      </button>
-      
 
-      <!-- MAIN -->
-
-      <div class="container-fluid" id="main-wrapper" style="position:relative;">
-
-        <!-- Spinner overlay -->
-        <div id="global-spinner">
-          <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
+      <div class="row">
+        <!-- close navbar -->
+        <div class="col-6 d-flex justify-content-start">
+          <button class="btn btn-outline-secondary" onclick="document.getElementById('pushSidebar').classList.toggle('collapsed')" aria-label="Toggle sidebar" aria-expanded="true">
+              <i class="bi bi-list"></i>
+          </button>
+        </div>
+        <div class="col-6 d-flex justify-content-end">
+          <div id="global-spinner">
+            <div class="spinner-border text-primary" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
           </div>
         </div>
+      </div>
+
+      
+      <!-- MAIN -->
+      
+      <div id="main-wrapper">
+        <!-- Spinner overlay -->
 
         <!-- nontent area -->
-        <div class="container-fluid" id="main" class="mt-3 border p-3">
+        <div id="main">
           <!-- page loads this automatically loads so, when page loads no empty dashboard -->
           <div class="nav-link btn text-start active"
             hx-get="<?= COMPONENTS_URL . 'dashboard_content.php' ?>"

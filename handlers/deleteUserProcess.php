@@ -25,4 +25,5 @@ if ($_SERVER["REQUEST_METHOD"] === "DELETE") {
 }
 
 // Render updated table directly
-require_once("read_users.php");
+// if dont u dont get the updated data
+require_once("readUsers.php");

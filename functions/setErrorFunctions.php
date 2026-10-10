@@ -19,6 +19,8 @@ function SetErrorMessage(PDOException $e) {
             $msg = "Profile picture could not be saved.";
         } elseif (strpos($e->getMessage(), 'face_descriptions') !== false) {
             $msg = "Face data could not be saved.";
+        } elseif (strpos($e->getMessage(), 'guardian.email') !== false) {
+            $msg = "guardians email already exist.";
         }
     }
 

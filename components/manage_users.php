@@ -5,8 +5,7 @@ require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 ?>
 
 
-<div class="container-fluid">
-    
+<div>
     <div class="d-flex align-items-center justify-content-between mb-4">
         <h3>Manage Users</h3>
     </div>
@@ -18,7 +17,7 @@ require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
     <div class="card mb-4 shadow-sm">
         <div class="card-header bg-primary text-white">Create New User</div>
         <div class="card-body">
-            <form hx-post="<?= HANDLERS_URL . 'createUser.php'; ?>"
+            <form hx-post="<?= HANDLERS_URL . 'createUserProcess.php'; ?>"
                   hx-target="#message"
                   hx-swap="innerHTML"
                   hx-indicator="#global-spinner"
@@ -46,19 +45,18 @@ require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
         <div class="card-body">
             <div class="row g-3">
                 <div class="col-md-8">
-                    <!-- Real-time search with 300ms delay -->
+                    <!-- reeal-time search with 400ms delay -->
                     <input type="text" 
                            name="search" 
                            class="form-control" 
                            placeholder="Search username or email..."
                            hx-get="<?= HANDLERS_URL . 'readUsers.php'; ?>" 
                            hx-target="#user-table-container" 
-                           hx-trigger="keyup changed delay:300ms, search"
-                           hx-include="[name='role']"
+                           hx-trigger="keyup changed delay:400ms, search"
                            hx-indicator="#global-spinner">
                 </div>
                 <div class="col-md-4">
-                    <!-- Filter by Role -->
+                    <!-- filter by role -->
                     <select name="role" 
                             class="form-select"
                             hx-get="<?= HANDLERS_URL . 'readUsers.php'; ?>" 
@@ -75,10 +73,19 @@ require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
         </div>
     </div>
 
-    <!-- Table Container (Loads automatically on page open & on 'reloadUsers' event) -->
+    <!-- table container (Loads automatically on page open & on 'reloadUsers' event) -->
     <div id="user-table-container" 
          hx-get="<?= HANDLERS_URL . 'readUsers.php'; ?>" 
          hx-trigger="load, reloadUsers from:body"
          hx-indicator="#global-spinner">
     </div>
+//mt working
+    <?php for ($i = 1; $i <= isset($result['total_pages']); $i++): ?>
+        <div><?= $i?></div>
+    <!-- <button class="btn btn-sm btn-outline-danger"
+        hx-get="<?= HANDLERS_URL . 'readUsers.php?page=' . $i; ?>"
+        hx-trigger="load, reloadUsers from:body"
+        >Delete
+    </button> -->
+    <?php endfor?>
 </div>
