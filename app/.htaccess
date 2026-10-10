@@ -8,9 +8,9 @@ Options +FollowSymLinks -Indexes
 # Default page for /1_SRMS/app/
 DirectoryIndex login_page.php
 
-# Redirect external requests with .php extension to clean URL
-RewriteCond %{THE_REQUEST} \s/app/([^\s?]+)\.php [NC]
-RewriteRule ^app/(.+)\.php$ /1_SRMS/app/$1 [R=301,L]
+# Redirect direct access to .php files
+RewriteCond %{THE_REQUEST} \s/+1_SRMS/app/(.+)\.php[\s?] [NC]
+RewriteRule ^(.+)\.php$ $1 [R=301,L]
 
 # Internally route extensionless URLs to their actual .php file
 RewriteCond %{REQUEST_FILENAME} !-d

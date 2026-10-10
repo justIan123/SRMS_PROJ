@@ -1,6 +1,6 @@
 <?php
+require_once("../public/initialize.php");
 session_start();
-require_once("../public/index.php");
 
 require_once(CONFIG_PATH . DS . "db_sqlite.php");
 require_once(FUNCTIONS_PATH . DS . "securityFunctions.php");
@@ -27,7 +27,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     
         if ($user && password_verify($password, $user['password'])) {
             $_SESSION['user'] = $user['username'];
-            header("Location: ../app/dashboard");
+            header("Location: ../app/dashboard.php");
             exit;
         } else {
             $err = "Invalid username or password.";

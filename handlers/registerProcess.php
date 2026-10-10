@@ -1,5 +1,5 @@
 <?php
-require_once("../public/index.php");
+require_once("../public/initialize.php");
 
 require_once(CONFIG_PATH . DS . "db_sqlite.php");
 require_once(FUNCTIONS_PATH . DS . "securityFunctions.php");
@@ -32,7 +32,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         $pdo->commit();
 
-        header("Location: ../app/login_page");
+        header("Location: ../app/login_page.php");
         exit;
     } catch (PDOException $e) {
         if ($pdo->inTransaction()) {

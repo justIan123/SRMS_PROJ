@@ -1,5 +1,5 @@
 <?php
-require_once("../public/index.php");
+require_once("../public/initialize.php");
 
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 require_once(INCLUDE_PATH . DS . "auth.php");
@@ -171,7 +171,7 @@ require_once(INCLUDE_PATH . DS . "auth.php");
       <div id="main-wrapper">
         <!-- Spinner overlay -->
 
-        <!-- nontent area -->
+        <!-- content area -->
         <div id="main">
           <!-- page loads this automatically loads so, when page loads no empty dashboard -->
           <div class="nav-link btn text-start active"

@@ -1,5 +1,5 @@
 <?php
-require_once("../public/index.php");
+require_once("../public/initialize.php");
 
 require_once(CONFIG_PATH . DS . "db_sqlite.php");
 require_once(FUNCTIONS_PATH . DS . "securityFunctions.php");
@@ -20,7 +20,7 @@ require_once(DEBUG_PATH . "debugFunctions.php");
     $stmt->execute();
     $adminExists = $stmt->fetchColumn();
     if ($adminExists > 0) {
-        header("Location: ../app/login_page");
+        header("Location: ../app/login_page.php");
     }
 
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
@@ -59,7 +59,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         $pdo->commit();
 
-        header("Location: ../app/admin_register_page");
+        header("Location: ../app/admin_register_page.php");
         exit;
     } catch (PDOException $e) {
         if ($pdo->inTransaction()) {

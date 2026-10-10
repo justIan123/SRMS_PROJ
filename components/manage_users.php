@@ -1,5 +1,5 @@
 <?php
-require_once("../public/index.php");
+require_once("../public/initialize.php");
 
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 ?>
@@ -79,7 +79,7 @@ require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
          hx-trigger="load, reloadUsers from:body"
          hx-indicator="#global-spinner">
     </div>
-//mt working
+<!-- mt working -->
     <?php for ($i = 1; $i <= isset($result['total_pages']); $i++): ?>
         <div><?= $i?></div>
     <!-- <button class="btn btn-sm btn-outline-danger"

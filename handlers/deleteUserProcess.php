@@ -1,5 +1,5 @@
 <?php
-require_once("../public/index.php");
+require_once("../public/initialize.php");
 require_once(CONFIG_PATH . DS . "db_sqlite.php");
 
 if ($_SERVER["REQUEST_METHOD"] === "DELETE") {

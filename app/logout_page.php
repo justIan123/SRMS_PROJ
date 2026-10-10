@@ -1,5 +1,5 @@
 <?php
-require_once("../public/index.php");
+require_once("../public/initialize.php");
 require_once(HANDLERS_PATH . DS . "logoutProcess.php");
 
 // why tf this exist
