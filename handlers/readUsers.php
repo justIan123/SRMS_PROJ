@@ -2,14 +2,51 @@
 require_once("../public/initialize.php");
 require_once(CONFIG_PATH . DS . "db_sqlite.php");
 require_once(FUNCTIONS_PATH . DS . "securityFunctions.php");
-require_once(FUNCTIONS_PATH . DS . "DbFunctions.php"); // must contain the CRUD helper functions (crud.php)
+require_once(FUNCTIONS_PATH . DS . "DbFunctions.php");
 
-$search  = trim($_GET['search'] ?? '');
+$search  = trim($_GET['search'] ?? ''); 
 $page    = max((int)($_GET['page'] ?? 1), 1);
 $limit   = 10;
 
 $users      = [];
 $totalPages = 1;
+
+//TABLE SORT
+// Only these keys can be sorted. The value is the real DB column.
+//only edit the $sortable
+$sortable = [
+    'id'    => 'id',
+    'username'  => 'username',
+    'email'  => 'email',
+    'role'  => 'role',
+];
+
+$sort = $_GET['sort'] ?? 'id';
+//default
+if (!isset($sortable[$sort])) {
+    $sort = 'id';
+}
+$dir     = strtoupper($_GET['dir'] ?? 'ASC') === 'DESC' ? 'DESC' : 'ASC';
+$orderBy = $sortable[$sort];
+//every page reload this func is not exist only exist when called that reaction will activate the sort
+if (!function_exists('sortHeader')) {
+    function sortHeader(string $label, string $key, string $curSort, string $curDir, string $search): string
+    {
+        $nextDir = ($curSort === $key && $curDir === 'ASC') ? 'DESC' : 'ASC';
+        $arrow   = ($curSort === $key) ? ($curDir === 'ASC' ? ' ▲' : ' ▼') : '';
+        $url     = strtok($_SERVER['REQUEST_URI'], '?') . '?' . http_build_query([
+            'search' => $search,
+            'sort'   => $key,
+            'dir'    => $nextDir,
+            'page'   => 1,
+        ]);
+
+        return '<th style="cursor:pointer" hx-get="' . htmlspecialchars($url) . '"'
+             . ' hx-target="#user-table-container" hx-swap="innerHTML">'
+             . htmlspecialchars($label . $arrow) . '</th>';
+    }
+}
+//START PROCESS
 
 try {
     $searchColumns = ['username', 'email'];
@@ -25,10 +62,10 @@ try {
 
     // 2. Get only the rows for the current page
     $users = ($search === '')
-        ? FindAll($pdo, 'users', $limit, $offset, 'id', 'ASC')
-        : SearchRecords($pdo, 'users', $searchColumns, $search, $limit, $offset, 'id', 'ASC');
+        ? FindAll($pdo, 'users', $limit, $offset,  $orderBy, $dir)
+        : SearchRecords($pdo, 'users', $searchColumns, $search, $limit, $offset, $orderBy, $dir);
 
-    // 3. Attach each user's role from the user_roles table
+    // attach each user's role from the user_roles table
     foreach ($users as $i => $user) {
         $roleRows = FindWhere($pdo, 'user_roles', ['user_id' => $user['id']], 1);
         $users[$i]['role'] = $roleRows[0]['role'] ?? null;
@@ -39,15 +76,14 @@ try {
     $totalPages = 1;
 }
 ?>
-
-<!-- HTML Response Returned to #user-table-container -->
+<!-- main -->
 <div class="table-responsive">
     <table class="table table-bordered table-striped align-middle">
         <thead class="table-dark">
             <tr>
-                <th>ID</th>
-                <th>Username</th>
-                <th>Email</th>
+                <?= sortHeader('ID',    'id',    $sort, $dir, $search); ?>
+                <?= sortHeader('Username',  'username',  $sort, $dir, $search); ?>
+                <?= sortHeader('Email', 'email', $sort, $dir, $search); ?>
                 <th>Role</th>
                 <th class="text-center">Action</th>
             </tr>
@@ -75,6 +111,16 @@ try {
                                     hx-confirm="Are you sure you want to delete this user?">
                                 Delete
                             </button>
+                            <button
+                                type="button"
+                                class="btn btn-sm btn-outline-primary edit-user-btn"
+                                data-toggle="modal"
+                                data-target="#editUserModal"
+                                data-id="<?= $user['id']; ?>"
+                                data-name="<?= htmlspecialchars($user['username']); ?>"
+                                data-email="<?= htmlspecialchars($user['email']); ?>">
+                                Update
+                            </button>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -86,7 +132,6 @@ try {
         </tbody>
     </table>
 </div>
-
 <nav>
   <ul class="pagination">
     <?php for ($i = 1; $i <= $totalPages; $i++): ?>
@@ -101,3 +146,4 @@ try {
     <?php endfor; ?>
   </ul>
 </nav>
+

@@ -21,10 +21,13 @@ define("IMAGES_PATH", SITE_ROOT . DS . "images");
 // require_once(INCLUDE_PATH . DS . "page.php");
 
 // urlk paths (for browser links/forms)
-define("BASE_URL", "http://localhost/1_SRMS/");
-define("HANDLERS_URL", BASE_URL . "handlers/");
-define("COMPONENTS_URL", BASE_URL . "components/");
-define("APP_URL", BASE_URL . "app/");
+// for deployment
+define("BASE_URL", "http://localhost/1_SRMS"); 
+// for php desktop and hopweb
+// define('BASE_URL','http://' . $_SERVER['HTTP_HOST']); 
+define("HANDLERS_URL", BASE_URL . "/handlers/");
+define("COMPONENTS_URL", BASE_URL . "/components/");
+define("APP_URL", BASE_URL . "/app/");
 // require_once(HANDLERS_URL . "pageProcess.php");
 
 ?>

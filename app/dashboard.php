@@ -226,9 +226,10 @@ require_once(INCLUDE_PATH . DS . "auth.php");
     Load Reports
   </button> -->
 
-  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
 </body>
 </html>
+<script src="https://unpkg.com/htmx.org@1.9.10"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
 <!-- RUKLE -->
 <!--

@@ -44,7 +44,7 @@ require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
     <div class="card mb-4 shadow-sm">
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-8">
+                <div class="col-md-12">
                     <!-- reeal-time search with 400ms delay -->
                     <input type="text" 
                            name="search" 
@@ -55,8 +55,8 @@ require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
                            hx-trigger="keyup changed delay:400ms, search"
                            hx-indicator="#global-spinner">
                 </div>
-                <div class="col-md-4">
-                    <!-- filter by role -->
+                <!-- -->
+                <!-- <div class="col-md-4">
                     <select name="role" 
                             class="form-select"
                             hx-get="<?= HANDLERS_URL . 'readUsers.php'; ?>" 
@@ -68,7 +68,7 @@ require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
                         <option value="1">Admin</option>
                         <option value="2">User</option>
                     </select>
-                </div>
+                </div> -->
             </div>
         </div>
     </div>
@@ -79,13 +79,5 @@ require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
          hx-trigger="load, reloadUsers from:body"
          hx-indicator="#global-spinner">
     </div>
-<!-- mt working -->
-    <?php for ($i = 1; $i <= isset($result['total_pages']); $i++): ?>
-        <div><?= $i?></div>
-    <!-- <button class="btn btn-sm btn-outline-danger"
-        hx-get="<?= HANDLERS_URL . 'readUsers.php?page=' . $i; ?>"
-        hx-trigger="load, reloadUsers from:body"
-        >Delete
-    </button> -->
-    <?php endfor?>
 </div>
+
