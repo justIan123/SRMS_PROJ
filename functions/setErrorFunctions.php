@@ -17,8 +17,6 @@ function SetErrorMessage(PDOException $e) {
             $msg = "Email already exist. Try logging in.";
         } elseif (strpos($e->getMessage(), 'profile_pic') !== false) {
             $msg = "Profile picture could not be saved.";
-        } elseif (strpos($e->getMessage(), 'face_descriptions') !== false) {
-            $msg = "Face data could not be saved.";
         } elseif (strpos($e->getMessage(), 'guardian.email') !== false) {
             $msg = "guardians email already exist.";
         }

@@ -532,3 +532,46 @@ function CountWithJoin(PDO $pdo, string $table, array $joins, array $conditions 
  
     return (int) $stmt->fetchColumn();
 }
+
+/**
+ * Helper (internal): WHERE for a list = exact conditions AND (search in any column).
+ * Example: school_year_id = 3 AND (fname LIKE '%ann%' OR lname LIKE '%ann%')
+ */
+function buildListWhere(array $conditions, array $searchCols, string $keyword): array
+{
+    [$where, $params] = buildWhereClause($conditions);
+
+    if ($keyword !== '' && $searchCols) {
+        $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $keyword);
+        $parts = [];
+        foreach (array_values($searchCols) as $i => $col) {
+            $parts[] = safeIdentifier($col) . " LIKE :kw$i ESCAPE '!'";
+            $params[":kw$i"] = '%' . $escaped . '%';
+        }
+        $where .= ($where === '' ? ' WHERE ' : ' AND ') . '(' . implode(' OR ', $parts) . ')';
+    }
+
+    return [$where, $params];
+}
+
+/**
+ * Rows of a table with: filter + search + sort + pagination.
+ * $users = ListRecords($pdo, 'students', ['school_year_id' => 1], ['fname','lname'], 'ann', 10, 0, 'id', 'ASC');
+ */
+function ListRecords(PDO $pdo, string $table, array $conditions, array $searchCols, string $keyword,
+                     int $limit, int $offset, string $orderBy = 'id', string $direction = 'ASC'): array
+{
+    $direction = strtoupper($direction) === 'DESC' ? 'DESC' : 'ASC';
+    [$where, $params] = buildListWhere($conditions, $searchCols, $keyword);
+
+    $sql = "SELECT * FROM " . safeIdentifier($table) . $where .
+           " ORDER BY " . safeIdentifier($orderBy) . " $direction" .
+           " LIMIT " . max(0, $limit) . " OFFSET " . max(0, $offset);
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    return $stmt->fetchAll();
+}
+
+
+

@@ -141,7 +141,34 @@ require_once(INCLUDE_PATH . DS . "auth.php");
           </div>
         </li>
 
-        <li class="nav-item"><a class="nav-link" href="#"><i class="bi bi-box-seam me-2"></i>Products</a></li>
+        <li class="nav-item">
+
+          <div class="nav-link btn text-start"
+            hx-get="<?= COMPONENTS_URL . 'manage_teachers.php' ?>"
+            hx-target="#main"
+            hx-swap="innerHTML"
+            hx-indicator="#global-spinner"
+            onclick="setActive(this)"
+            >
+            <i class="bi bi-person-add me-2"></i>
+              Manage Teachers
+          </div>
+        </li>
+
+        <li class="nav-item">
+
+          <div class="nav-link btn text-start"
+            hx-get="<?= COMPONENTS_URL . 'manage_schoolYear.php' ?>"
+            hx-target="#main"
+            hx-swap="innerHTML"
+            hx-indicator="#global-spinner"
+            onclick="setActive(this)"
+            >
+            <i class="bi bi-calendar"></i>
+              School Year
+          </div>
+        </li>
+
         <li class="nav-item"><a class="nav-link" href="#"><i class="bi bi-people me-2"></i>Customers</a></li>
         <li class="nav-item"><a class="nav-link" href="#"><i class="bi bi-graph-up me-2"></i>Reports</a></li>
         <li class="nav-item"><a class="nav-link" href="logout_page"><i class="bi bi-door-closed me-2"></i>Logout</a></li>

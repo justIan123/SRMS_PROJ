@@ -65,7 +65,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
         }
-        show($e);
         // error_log($e->getMessage(), 3, LOGS_PATH . DS . "logs.txt");
         err_log($e->getMessage());
 
