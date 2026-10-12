@@ -364,37 +364,171 @@ function CountSearchRecords(PDO $pdo, string $table, array $columns, string $key
  
     return (int) $stmt->fetchColumn();
 }
+
+/* ======================================================================
+ * JOIN FUNCTIONS (this is bad practice seryoso )
+ * ====================================================================== */
  
 /**
- * @param string $table - Name of the database table to search.
- * @param array $columns - List of columns that will be searched.
- * @param string $keyword - Search value entered by the user.
- * @param PDO $pdo - Active PDO database connection.
- * Expected value:TableSearch(WHERE TO SEARCH,WHAT COLUMNS TO SEARCH,WHAT TO SEARCH FOR,DATABASE CONNECTION);
- * $students = TableSearch(
- *      'students',
- *      ['firstname', 'lastname', 'email'],
- *      $_GET['search'],
- *      $pdo
- *   );
+ * @param string $name - Column like "students.id" (table.column) or just "id".
+ * @return string - Safely quoted, e.g. `students`.`id`
+ * Helper: same protection as safeIdentifier(), but allows one dot for table.column.
  */
-function TableSearch(string $table, array $columns, $keyword, PDO $pdo)
+function safeQualified(string $name): string
 {
-    $conditions = [];
-
-    foreach ($columns as $column) {
-        $conditions[] = "$column LIKE ?";
+    return implode('.', array_map('safeIdentifier', explode('.', $name)));
+}
+ 
+/**
+ * Helper (internal): builds the "FROM ... JOIN ..." part. Used by FindWithJoin() and CountWithJoin().
+ * @param array $joins - [[TYPE, joinTable, leftColumn, rightColumn], ...] TYPE = INNER, LEFT or RIGHT.
+ */
+function buildJoinFrom(string $table, array $joins): string
+{
+    $sql = " FROM " . safeIdentifier($table);
+ 
+    foreach ($joins as $join) {
+        if (count($join) !== 4) {
+            throw new InvalidArgumentException('Each join must be [TYPE, table, leftColumn, rightColumn].');
+        }
+        [$type, $joinTable, $left, $right] = $join;
+ 
+        $type = strtoupper($type);
+        if (!in_array($type, ['INNER', 'LEFT', 'RIGHT'], true)) {
+            throw new InvalidArgumentException("Invalid join type: $type");
+        }
+ 
+        $sql .= " $type JOIN " . safeIdentifier($joinTable) .
+                " ON " . safeQualified($left) . " = " . safeQualified($right);
     }
-
-    $sql = "SELECT * FROM $table WHERE " .
-           implode(' OR ', $conditions);
-
+ 
+    return $sql;
+}
+ 
+/**
+ * Helper (internal): like buildWhereClause() but accepts "table.column" keys.
+ * Placeholders are numbered (:jw0, :jw1...) because a dot can't be part of a placeholder name.
+ * @return array - [ $whereSql, $params ]
+ */
+function buildJoinWhere(array $conditions): array
+{
+    if (empty($conditions)) {
+        return ['', []];
+    }
+ 
+    $parts  = [];
+    $params = [];
+    $i      = 0;
+ 
+    foreach ($conditions as $column => $value) {
+        $quoted = safeQualified($column);
+ 
+        if ($value === null) {
+            $parts[] = "$quoted IS NULL";
+            continue;
+        }
+ 
+        $placeholder          = ':jw' . $i++;
+        $parts[]              = "$quoted = $placeholder";
+        $params[$placeholder] = $value;
+    }
+ 
+    return [' WHERE ' . implode(' AND ', $parts), $params];
+}
+ 
+/**
+ * @param PDO $pdo - The database connection from getConnection().
+ * @param string $table - Main table (the one after FROM), e.g. 'students'.
+ * @param array $joins - List of [TYPE, joinTable, leftColumn, rightColumn]. TYPE is INNER, LEFT or RIGHT.
+ * @param array $select - Columns to return. Use "table.column" and optionally "AS alias". Default ['*'].
+ * @param array $conditions - column => value (AND). Use "table.column" keys. null becomes IS NULL.
+ * @param int|null $limit - Max rows. Default null (no limit).
+ * @param int $offset - Rows to skip (only used when $limit is set). Default 0.
+ * @param string|null $orderBy - Column to sort by, e.g. 'students.lastname'. Default null (no ORDER BY).
+ * @param string $direction - 'ASC' or 'DESC'. Default 'ASC'.
+ * @return array - A list of rows (associative arrays). Empty array if none.
+ * Helper: SQL JOIN like this <br>
+ * // students + their course name, page 1 of 10, sorted by last name <br>
+ * $rows = FindWithJoin( <br>
+ *     $pdo, 'students', <br>
+ *     [['INNER', 'courses', 'students.course_id', 'courses.id']], <br>
+ *     ['students.id', 'students.firstname', 'courses.name AS course_name'], <br>
+ *     ['students.active' => 1], <br>
+ *     10, 0, 'students.lastname', 'ASC' <br>
+ * ); <br>
+ * <br>
+ * Tip: give columns that share a name an alias (AS), or the later one overwrites the earlier one.
+ */
+function FindWithJoin(
+    PDO $pdo,
+    string $table,
+    array $joins,
+    array $select = ['*'],
+    array $conditions = [],
+    ?int $limit = null,
+    int $offset = 0,
+    ?string $orderBy = null,
+    string $direction = 'ASC'
+): array {
+    if (empty($select)) {
+        throw new InvalidArgumentException('Provide at least one column to select.');
+    }
+ 
+    // SELECT list: "*", "table.*", "col", "table.col" or any of those with "AS alias"
+    $cols = [];
+    foreach ($select as $col) {
+        if ($col === '*') {
+            $cols[] = '*';
+        } elseif (preg_match('/^(\w+)\.\*$/', $col, $m)) {
+            $cols[] = safeIdentifier($m[1]) . '.*';
+        } elseif (preg_match('/^([\w.]+)(?:\s+AS\s+(\w+))?$/i', $col, $m)) {
+            $cols[] = safeQualified($m[1]) . (isset($m[2]) ? ' AS ' . safeIdentifier($m[2]) : '');
+        } else {
+            throw new InvalidArgumentException("Invalid select column: $col");
+        }
+    }
+ 
+    [$where, $params] = buildJoinWhere($conditions);
+ 
+    $sql = "SELECT " . implode(', ', $cols) . buildJoinFrom($table, $joins) . $where;
+ 
+    if ($orderBy !== null) {
+        $direction = strtoupper($direction);
+        if (!in_array($direction, ['ASC', 'DESC'], true)) {
+            throw new InvalidArgumentException("Direction must be ASC or DESC.");
+        }
+        $sql .= " ORDER BY " . safeQualified($orderBy) . " $direction";
+    }
+ 
+    if ($limit !== null) {
+        $sql .= " LIMIT " . max(0, $limit) . " OFFSET " . max(0, $offset);
+    }
+ 
     $stmt = $pdo->prepare($sql);
-
-    $search = "%{$keyword}%";
-    $params = array_fill(0, count($columns), $search);
-
     $stmt->execute($params);
-
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+ 
+    return $stmt->fetchAll();
+}
+ 
+/**
+ * @param PDO $pdo - The database connection from getConnection().
+ * @param string $table - Main table, e.g. 'students'.
+ * @param array $joins - Same format as FindWithJoin().
+ * @param array $conditions - Same format as FindWithJoin(). Default is empty (count everything).
+ * @return int - Number of rows the join would return (ignoring limit/offset).
+ * Helper: total rows for paginating a FindWithJoin() <br>
+ * $joins = [['INNER', 'courses', 'students.course_id', 'courses.id']]; <br>
+ * $where = ['students.active' => 1]; <br>
+ * $total = CountWithJoin($pdo, 'students', $joins, $where); <br>
+ * $totalPages = (int) ceil($total / 10);
+ */
+function CountWithJoin(PDO $pdo, string $table, array $joins, array $conditions = []): int
+{
+    [$where, $params] = buildJoinWhere($conditions);
+ 
+    $sql  = "SELECT COUNT(*)" . buildJoinFrom($table, $joins) . $where;
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+ 
+    return (int) $stmt->fetchColumn();
 }
