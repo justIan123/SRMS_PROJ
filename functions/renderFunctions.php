@@ -38,6 +38,7 @@ function renderPagination(string $base, int $page, int $totalPages): void
     echo '<nav><ul class="pagination">';
 
     echo '<li class="page-item ' . ($page <= 1 ? 'disabled' : '') . '">';
+    echo '<a class="page-link" href="' . $base . '&page=' . ($totalPages - $totalPages) . '"><strong>&laquo;&laquo;</strong></a></li>';
     echo '<a class="page-link" href="' . $base . '&page=' . ($page - 1) . '">&laquo;</a></li>';
 
     for ($i = $start; $i <= $end; $i++) {
@@ -47,6 +48,7 @@ function renderPagination(string $base, int $page, int $totalPages): void
 
     echo '<li class="page-item ' . ($page >= $totalPages ? 'disabled' : '') . '">';
     echo '<a class="page-link" href="' . $base . '&page=' . ($page + 1) . '">&raquo;</a></li>';
+    echo '<a class="page-link" href="' . $base . '&page=' . ($totalPages) . '"><strong>&raquo;&raquo;</strong></a></li>';
 
     echo '</ul></nav>';
 }

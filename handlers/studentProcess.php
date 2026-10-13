@@ -36,6 +36,13 @@ if ($year) {
         DeleteRecord($pdo, 'students', (int)$_POST['id']);
         $message = renderAlert('Student deleted', 'success');
     }
+
+    if ($action === 'assign') {
+        UpdateRecord($pdo, 'students', (int)$_POST['id'], [
+            'guardian_id' => (int)$_POST['guardian_id'],
+        ]);
+        $message = renderAlert('Student is Successfully Assigned', 'success');
+    }
 }
 
 // keep the same sort, search and page

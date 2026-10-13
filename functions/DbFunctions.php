@@ -511,6 +511,45 @@ function FindWithJoin(
 }
  
 /**
+ * @param array $left - The main list of rows (each row is an associative array), e.g. the result of fetching all students.
+ * @param array $right - The list of rows to attach to the left rows, e.g. the guardians.
+ * @param array $on - The join rule as ["left_table.column" => "right_table.column"], e.g. ["students.guardian_id" => "guardians.id"]. Only the first pair is used. The right table's name is also used as the prefix for the added columns.
+ * @param string $type - 'LEFT' (default) keeps left rows that have no match. 'INNER' drops them. Not case-sensitive. Any other value behaves like 'LEFT'.
+ * @return array - A new list of rows. Each left row keeps all its own columns, plus every right column renamed to "righttable_column" (e.g. guardians_id, guardians_fname, guardians_lname). Left rows with no match get no extra columns (LEFT join only).
+ * Helper: joins two arrays of rows in PHP, like SQL JOIN, when you can't or don't want to join in the query <br>
+ * // LEFT JOIN: list every student, with guardian info if they have one <br>
+ * $rows = joinRecords($students, $guardians, ["students.guardian_id" => "guardians.id"]); <br>
+ * echo $rows[0]['guardians_fname']; <br>
+ * // INNER JOIN: only students that have a guardian <br>
+ * $rows = joinRecords($students, $guardians, ["students.guardian_id" => "guardians.id"], 'INNER');
+ */
+function joinRecords(array $left, array $right, array $on, string $type = 'LEFT'): array
+{
+    $leftCol                 = explode('.', array_key_first($on))[1];
+    [$rightTable, $rightCol] = explode('.', $on[array_key_first($on)]);
+
+    // index the right rows by their id so lookups are fast
+    $index = [];
+    foreach ($right as $r) {
+        $index[$r[$rightCol]] = $r;
+    }
+
+    $out = [];
+    foreach ($left as $l) {
+        $match = $index[$l[$leftCol]] ?? null;
+
+        if ($match === null && strtoupper($type) === 'INNER') {
+            continue;
+        }
+        foreach ($match ?? [] as $col => $val) {
+            $l[$rightTable . '_' . $col] = $val;
+        }
+        $out[] = $l;
+    }
+    return $out;
+}
+
+/**
  * @param PDO $pdo - The database connection from getConnection().
  * @param string $table - Main table, e.g. 'students'.
  * @param array $joins - Same format as FindWithJoin().
@@ -572,6 +611,3 @@ function ListRecords(PDO $pdo, string $table, array $conditions, array $searchCo
     $stmt->execute($params);
     return $stmt->fetchAll();
 }
-
-
-

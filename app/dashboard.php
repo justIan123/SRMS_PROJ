@@ -112,11 +112,26 @@ require_once(INCLUDE_PATH . DS . "auth.php");
           </div>
         </li>
 
-
+        
         <li class="nav-item">
           <!-- i hate this onclick -->
           <div class="nav-link btn text-start"
-            hx-get="<?= COMPONENTS_URL . 'manage_users.php' ?>"
+            hx-get="<?= COMPONENTS_URL . 'manage_students.php' ?>"
+            hx-target="#main"
+            hx-swap="innerHTML"
+            hx-indicator="#global-spinner"
+            onclick="setActive(this)"
+            >
+            <i class="bi bi-people me-2"></i>
+              Add Students
+          </div>
+        </li>
+
+        
+        <li class="nav-item">
+          <!-- i hate this onclick -->
+          <div class="nav-link btn text-start"
+            hx-get="<?= COMPONENTS_URL . 'manage_teachers.php' ?>"
             hx-target="#main"
             hx-swap="innerHTML"
             hx-indicator="#global-spinner"
@@ -126,6 +141,8 @@ require_once(INCLUDE_PATH . DS . "auth.php");
               Add Teachers
           </div>
         </li>
+
+
 
         <li class="nav-item">
 
