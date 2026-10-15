@@ -11,9 +11,6 @@ $handler = HANDLERS_URL . DS . 'studentProcess.php';
 // 14/10/2026
 // i hate this every button create a req which is this too much for infinityfree
 
-
-
-
 /* STEP 1: Which school year are we in?*/
 $year = CurrentSchoolYear($pdo);
 
