@@ -8,53 +8,13 @@ require_once(FUNCTIONS_PATH . DS . "schoolFunctions.php");
 $self    = COMPONENTS_URL . 'manage_students.php';
 $handler = HANDLERS_URL . DS . 'studentProcess.php';
 
-
-/* ====================================================================
-   SMALL HELPER FUNCTIONS (used by the HTML at the bottom)
-   ==================================================================== */
-
-// Makes a link to this page. It keeps the current state (search, page, ...)
-// and lets you change a few things. A value of null or '' removes it from the link.
-if (!function_exists('makeUrl')) {
-    function makeUrl($self, $state, $changes = []) {
-        $all   = array_merge($state, $changes);
-        $clean = [];
-
-        foreach ($all as $key => $value) {
-            if ($value === null || $value === '' || $value === 0) {
-                continue;
-            }
-            $clean[$key] = $value;
-        }
-
-        return $self . '?' . http_build_query($clean);
-    }
-}
-
-// Prints hidden inputs for the current state, so a form remembers where we are.
-// $skip = names we do NOT want to print (because the form has its own input for them).
-if (!function_exists('hiddenFields')) {
-    function hiddenFields($state, $skip = []) {
-        foreach ($state as $key => $value) {
-            if (in_array($key, $skip)) {
-                continue;
-            }
-            echo '<input type="hidden" name="' . $key . '" value="' . htmlspecialchars((string)$value) . '">';
-        }
-    }
-}
-
-// Makes the hx-vals text for buttons that post (Delete, Assign).
-if (!function_exists('postValues')) {
-    function postValues($state, $extra) {
-        return htmlspecialchars(json_encode(array_merge($state, $extra)), ENT_QUOTES);
-    }
-}
+// 14/10/2026
+// i hate this every button create a req which is this too much for infinityfree
 
 
-/* ====================================================================
-   STEP 1: Which school year are we in?
-   ==================================================================== */
+
+
+/* STEP 1: Which school year are we in?*/
 $year = CurrentSchoolYear($pdo);
 
 if (!$year) {
@@ -65,9 +25,7 @@ if (!$year) {
 $where = ['school_year_id' => $year['id']];
 
 
-/* ====================================================================
-   STEP 2: Read what the user typed or clicked
-   ==================================================================== */
+/*STEP 2: Read what the user typed or clicked*/
 $search   = trim($_GET['search'] ?? '');    // search box for students
 $gsearch  = trim($_GET['gsearch'] ?? '');   // search box for guardians
 $editId   = (int)($_GET['edit'] ?? 0);      // student being edited
@@ -91,9 +49,7 @@ if ($dir === 'DESC') {
 }
 
 
-/* ====================================================================
-   STEP 3: Load students and guardians of this school year
-   ==================================================================== */
+/*STEP 3 Load students and guardians of this school year*/
 $allGuardians = FindWhere($pdo, 'guardians', $where);
 $allStudents  = FindWhere($pdo, 'students', $where);
 
@@ -121,6 +77,7 @@ foreach ($allStudents as $st) {
 }
 
 // If that student does not exist, forget about assigning
+//for just to be sure
 if ($assignStudent === null) {
     $assignId = 0;
 }
@@ -129,9 +86,7 @@ $assigning         = ($assignId > 0);
 $currentGuardianId = $assignStudent['guardian_id'] ?? 0;   // the parent the student has now
 
 
-/* ====================================================================
-   STEP 4: Guardian list (right side): search + pages
-   ==================================================================== */
+/* STEP 4: Guardian list (right side): search + pages*/
 $matchingGuardians = [];
 
 foreach ($allGuardians as $g) {
@@ -145,9 +100,9 @@ foreach ($allGuardians as $g) {
     }
 }
 
-$gPerPage    = 8;
+$gPerPage    = (int)($_GET['PerPageLimit'] ?? 10);
 $gTotalPages = max(1, (int)ceil(count($matchingGuardians) / $gPerPage));
-$gpage       = min(max(1, (int)($_GET['gpage'] ?? 1)), $gTotalPages);
+$gpage       = min(max(1, (int)($_GET['gPageNum'] ?? 1)), $gTotalPages);
 $gRows       = array_slice($matchingGuardians, ($gpage - 1) * $gPerPage, $gPerPage);
 
 $gPrevClass = 'disabled';
@@ -161,30 +116,27 @@ if ($gpage < $gTotalPages) {
 }
 
 
-/* ====================================================================
-   STEP 5: Student list (left side): search + sort + pages
-   ==================================================================== */
+/* STEP 5: Student list (left side): search + sort + pages*/
 $cols       = ['fname', 'lname', 'grade_level'];
-$perPage    = 10;
+$perPage    = (int)($_GET['PerPageLimit'] ?? 10);
 $total      = CountList($pdo, 'students', $where, $cols, $search);
 $totalPages = max(1, ceil($total / $perPage));
-$page       = min(max(1, (int)($_GET['page'] ?? 1)), $totalPages);
-$offset     = ($page - 1) * $perPage;
+$StudentPage       = min(max(1, (int)($_GET['StudentPageNum'] ?? 1)), $totalPages);
+$offset     = ($StudentPage - 1) * $perPage;
 
 $rows = ListRecords($pdo, 'students', $where, $cols, $search, $perPage, $offset, $sort, $dir);
 
 
-/* ====================================================================
-   STEP 6: Remember the state (every link and form carries it along)
-   ==================================================================== */
+/* STEP 6: Remember the state (every link and form carries it along) */
 $state = [
     'sort'    => $sort,
     'dir'     => $dir,
-    'page'    => $page,
+    'page'    => $StudentPage,
     'search'  => $search,
     'gsearch' => $gsearch,
     'gpage'   => $gpage,
     'assign'  => $assignId,
+    'PerPageLimit'  => $perPage,
 ];
 ?>
 
@@ -196,10 +148,8 @@ $state = [
     <div class="row g-4">
 
 
-        <!-- ==========================================================
-             LEFT SIDE: STUDENTS
-             ========================================================== -->
-        <div class="">
+        <!--STUDENTS-->
+        <div id="studentsDiv">
 
             <!-- CREATE a student (the parent is assigned later from the table) -->
             <form hx-post="<?= $handler ?>" class="mb-3 d-flex gap-2">
@@ -211,15 +161,33 @@ $state = [
                 <button class="btn btn-primary">Create</button>
             </form>
 
-            <!-- SEARCH students -->
-            <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2">
-                <?php hiddenFields($state, ['search', 'page']); ?>
-                <input type="text" name="search" class="form-control w-auto"
-                       value="<?= htmlspecialchars($search) ?>" placeholder="Search students...">
-                <button class="btn btn-outline-primary">Search</button>
-                <a href="<?= makeUrl($self, $state, ['search' => null, 'page' => null]) ?>"
-                   class="btn btn-outline-secondary">Clear</a>
-            </form>
+            <div class="row">
+                <div class="col-6">
+                    <!-- SEARCH students -->
+                    <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2">
+                        <?php hiddenFields($state, ['search', 'page']); ?>
+                        <input type="text" name="search" class="form-control w-auto"
+                            value="<?= htmlspecialchars($search) ?>" placeholder="Search students...">
+                        <button class="btn btn-outline-primary">Search</button>
+                        <a href="<?= makeUrl($self, $state, ['search' => null, 'page' => null]) ?>"
+                        class="btn btn-outline-secondary">Clear</a>
+                    </form>
+                </div>
+
+                <div class="col-6 d-flex justify-content-end">
+                    <!-- limit rows -->
+                    <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2">
+                        <p class="mt-3"> Set Limit the No of rows</p>
+                        <?php hiddenFields($state, ['per', 'page']); ?>
+                        <input type="number" name="PerPageLimit" class="form-control w-auto"
+                            value="<?= htmlspecialchars($perPage) ?>" placeholder="Show limit of Rows...">
+                        <button class="btn btn-outline-primary">Search</button>
+                    </form>
+                </div>
+            </div>
+
+
+
 
             <!-- This tiny form only exists while a student is being edited -->
             <?php if ($editId): ?>
@@ -281,11 +249,12 @@ $state = [
                         <td><?= htmlspecialchars($r['lname']) ?></td>
                         <td><?= htmlspecialchars($r['grade_level'] ?? '') ?></td>
                         <td class="<?= $parentClass ?>"><?= htmlspecialchars($parentName) ?></td>
+                        <!-- <td><?= makeUrl($self, $state, ['assign' => $r['id'], 'scrollToDiv' => 'guardiansDiv']) ?></td> -->
                         <td class="text-nowrap">
 
                             <!-- Button to start choosing a parent -->
                             <?php if (!$isThisOne): ?>
-                                <a href="<?= makeUrl($self, $state, ['assign' => $r['id']]) ?>"
+                                <a href="<?= makeUrl($self, $state, ['assign' => $r['id']]) . '#guardiansDiv' ?>"
                                    class="btn btn-sm btn-outline-success"><?= $assignLabel ?></a>
                             <?php endif; ?>
 
@@ -306,15 +275,14 @@ $state = [
                     </tr>
                 <?php endforeach; ?>
             </table>
-
-            <?php renderPagination(makeUrl($self, $state, ['page' => null]), $page, $totalPages); ?>
+            <!-- i hate this code -->
+            <!-- some reason when user go to guardian pagination the student pagination resets(go back to page 1) -->
+            <?php renderPagination(makeUrl($self, $state, ['gpage' => $gpage - 1, 'gPageNum' => $gpage]) ,$StudentPage ,"StudentPageNum" ,$totalPages); ?>
         </div>
 
 
-        <!-- ==========================================================
-             RIGHT SIDE: GUARDIANS
-             ========================================================== -->
-        <div class="">
+        <!--GUARDIANS-->
+        <div id="guardiansDiv">
 
             <h5>Guardians</h5>
 
@@ -348,7 +316,7 @@ $state = [
             </form>
 
             <!-- GUARDIAN TABLE -->
-            <table class="table table-sm align-middle">
+            <table class="table align-middle">
                 <tr>
                     <th>Guardian</th>
                     <th>Phone</th>
@@ -399,9 +367,12 @@ $state = [
                     </tr>
                 <?php endforeach; ?>
             </table>
-
             <!-- Guardian pages: Prev / Next -->
-            <div class="d-flex justify-content-between align-items-center">
+            <!-- <?= makeUrl($self, $state, ['gpage' => $gpage - 1, 'StudentPageNum' => $StudentPage]) ?> -->
+            <?= http_build_query($state) ?>
+            <?php renderPagination(makeUrl($self, $state, ['gpage' => $gpage - 1, 'StudentPageNum' => $StudentPage]), $gpage, "gPageNum", $gTotalPages); ?>
+
+            <!-- <div class="d-flex justify-content-between align-items-center">
                 <a href="<?= makeUrl($self, $state, ['gpage' => $gpage - 1]) ?>"
                    class="btn btn-sm btn-outline-secondary <?= $gPrevClass ?>">&laquo; Prev</a>
 
@@ -409,7 +380,7 @@ $state = [
 
                 <a href="<?= makeUrl($self, $state, ['gpage' => $gpage + 1]) ?>"
                    class="btn btn-sm btn-outline-secondary <?= $gNextClass ?>">Next &raquo;</a>
-            </div>
+            </div> -->
         </div>
 
     </div>

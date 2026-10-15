@@ -27,10 +27,10 @@ $dir  = ($_GET['dir'] ?? '') === 'DESC' ? 'DESC' : 'ASC';
 $flip = $dir === 'ASC' ? 'DESC' : 'ASC';
 
 // ---- pagination ----
-$perPage    = 10;
+$perPage    = (int)($_GET['PerPageLimit'] ?? 10);
 $total      = CountList($pdo, $table, $where, $cols, $search);
 $totalPages = max(1, ceil($total / $perPage));
-$page       = min(max(1, (int)($_GET['page'] ?? 1)), $totalPages);
+$page       = min(max(1, (int)($_GET['tpage'] ?? 1)), $totalPages);
 
 $rows   = ListRecords($pdo, $table, $where, $cols, $search, $perPage, ($page - 1) * $perPage, $sort, $dir);
 $editId = (int)($_GET['edit'] ?? 0);
@@ -38,6 +38,13 @@ $editId = (int)($_GET['edit'] ?? 0);
 $s    = '&search=' . urlencode($search);
 $base = $self . "?sort=$sort&dir=$dir" . $s;
 $keep = ['sort' => $sort, 'dir' => $dir, 'page' => $page, 'search' => $search];
+
+$state = [
+    'sort'    => $sort,
+    'dir'     => $dir,
+    'search'  => $search,
+    'PerPageLimit'  => $perPage,
+];
 ?>
 
 <div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner">
@@ -55,16 +62,32 @@ $keep = ['sort' => $sort, 'dir' => $dir, 'page' => $page, 'search' => $search];
         <button class="btn btn-primary">Create</button>
     </form>
 
-    <!-- SEARCH -->
-    <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2">
-        <input type="hidden" name="sort" value="<?= $sort ?>">
-        <input type="hidden" name="dir" value="<?= $dir ?>">
-        <input type="text" name="search" class="form-control w-auto" value="<?= htmlspecialchars($search) ?>" placeholder="Search...">
-        <button class="btn btn-outline-primary">Search</button>
-        <?php if ($search !== ''): ?>
-            <a href="<?= $self ?>?sort=<?= $sort ?>&dir=<?= $dir ?>" class="btn btn-outline-secondary">Clear</a>
-        <?php endif; ?>
-    </form>
+    
+    <div class="row">
+        <div class="col-6">
+            <!-- SEARCH -->
+            <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2">
+                <input type="hidden" name="sort" value="<?= $sort ?>">
+                <input type="hidden" name="dir" value="<?= $dir ?>">
+                <input type="text" name="search" class="form-control w-auto" value="<?= htmlspecialchars($search) ?>" placeholder="Search...">
+                <button class="btn btn-outline-primary">Search</button>
+                <?php if ($search !== ''): ?>
+                    <a href="<?= $self ?>?sort=<?= $sort ?>&dir=<?= $dir ?>" class="btn btn-outline-secondary">Clear</a>
+                <?php endif; ?>
+            </form>
+        </div>
+
+        <div class="col-6 d-flex justify-content-end">
+            <!-- limit rows -->
+            <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2">
+                <p class="mt-3"> Set Limit the No of rows</p>
+                <?php hiddenFields($state, ['per', 'page']); ?>
+                <input type="number" name="PerPageLimit" class="form-control w-auto"
+                    value="<?= htmlspecialchars($perPage) ?>" placeholder="Show limit of Rows...">
+                <button class="btn btn-outline-primary">Search</button>
+            </form>
+        </div>
+    </div>
 
     <!-- UPDATE form (only exists while editing) -->
     <?php if ($editId): ?>
@@ -126,6 +149,6 @@ $keep = ['sort' => $sort, 'dir' => $dir, 'page' => $page, 'search' => $search];
         <?php endforeach; ?>
     </table>
 
-    <?php renderPagination($base, $page, $totalPages); ?>
+    <?php renderPagination($base, $page, "tpage", $totalPages); ?>
 
 </div>

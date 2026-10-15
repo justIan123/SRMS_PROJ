@@ -1,10 +1,10 @@
 <?php
 
-$host     = "";
-$db       = "";
-$user     = "";
-$pass     = "";
-$port     = "";
+$host     = 'aws-0-ap-southeast-1.pooler.supabase.com'; // Your Supabase host
+$db       = 'postgres';                          // Default DB name
+$user     = 'postgres.jomzzddiybsqwrkhfyap';          // Database user
+$pass     = 'omzpwzCPHrpayUiB';            // Database password
+$port     = '5432';                              // Transaction pooler port (or 5432)
 
 $dsn = "pgsql:host=$host;port=$port;dbname=$db;";
 

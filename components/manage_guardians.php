@@ -30,7 +30,7 @@ $flip = $dir === 'ASC' ? 'DESC' : 'ASC';
 $perPage    = 10;
 $total      = CountList($pdo, $table, $where, $cols, $search);
 $totalPages = max(1, ceil($total / $perPage));
-$page       = min(max(1, (int)($_GET['page'] ?? 1)), $totalPages);
+$page       = min(max(1, (int)($_GET['gpage'] ?? 1)), $totalPages);
 
 $rows   = ListRecords($pdo, $table, $where, $cols, $search, $perPage, ($page - 1) * $perPage, $sort, $dir);
 $editId = (int)($_GET['edit'] ?? 0);
@@ -126,6 +126,6 @@ $keep = ['sort' => $sort, 'dir' => $dir, 'page' => $page, 'search' => $search];
         <?php endforeach; ?>
     </table>
 
-    <?php renderPagination($base, $page, $totalPages); ?>
+    <?php renderPagination($base, $page, "gpage", $totalPages); ?>
 
 </div>
