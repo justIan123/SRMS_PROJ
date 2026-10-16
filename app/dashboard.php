@@ -127,22 +127,34 @@ require_once(INCLUDE_PATH . DS . "auth.php");
           </div>
         </li>
 
-        
         <li class="nav-item">
-          <!-- i hate this onclick -->
+
           <div class="nav-link btn text-start"
-            hx-get="<?= COMPONENTS_URL . 'manage_teachers.php' ?>"
+            hx-get="<?= COMPONENTS_URL . 'manage_users.php' ?>"
             hx-target="#main"
             hx-swap="innerHTML"
             hx-indicator="#global-spinner"
             onclick="setActive(this)"
             >
             <i class="bi bi-person-add me-2"></i>
-              Add Teachers
+              Manage User's & Teachers
           </div>
         </li>
 
+        
+        <li class="nav-item">
 
+          <div class="nav-link btn text-start"
+            hx-get="<?= COMPONENTS_URL . 'manage_subjects.php' ?>"
+            hx-target="#main"
+            hx-swap="innerHTML"
+            hx-indicator="#global-spinner"
+            onclick="setActive(this)"
+            >
+            <i class="bi bi-calendar"></i>
+              Manage Subjects
+          </div>
+        </li>
 
         <li class="nav-item">
 
@@ -157,20 +169,8 @@ require_once(INCLUDE_PATH . DS . "auth.php");
               Add Guardians
           </div>
         </li>
+        
 
-        <li class="nav-item">
-
-          <div class="nav-link btn text-start"
-            hx-get="<?= COMPONENTS_URL . 'manage_teachers.php' ?>"
-            hx-target="#main"
-            hx-swap="innerHTML"
-            hx-indicator="#global-spinner"
-            onclick="setActive(this)"
-            >
-            <i class="bi bi-person-add me-2"></i>
-              Manage Teachers
-          </div>
-        </li>
 
         <li class="nav-item">
 

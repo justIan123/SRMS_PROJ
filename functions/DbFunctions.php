@@ -594,20 +594,113 @@ function buildListWhere(array $conditions, array $searchCols, string $keyword): 
 }
 
 /**
- * Rows of a table with: filter + search + sort + pagination.
- * $users = ListRecords($pdo, 'students', ['school_year_id' => 1], ['fname','lname'], 'ann', 10, 0, 'id', 'ASC');
+ * Fetch one page of rows from a table, with filtering, searching and sorting.
+ * Optionally adds computed columns (such as a user's roles) through $extra.
+ *
+ * Takes the same filter arguments as CountList(), so the rows returned always
+ * match the total that CountList() reports. Pass the same $conditions,
+ * $searchCols and $keyword to both.
+ *
+ * @param PDO      $pdo        Active database connection.
+ * @param string   $table      Table name (validated by safeIdentifier()).
+ * @param array    $conditions Exact-match filters, e.g. ['is_active' => 1].
+ *                             Pass [] for no filters.
+ * @param string[] $searchCols Columns the keyword is searched against,
+ *                             e.g. ['fname', 'lname']. Pass [] to skip search.
+ * @param string   $keyword    Search text. An empty string means no search.
+ * @param int      $limit      Max rows to return (page size). Negative values become 0.
+ * @param int      $offset     Rows to skip: ($page - 1) * $limit. Negative values become 0.
+ * @param string   $orderBy    Column to sort by. Either a real column of $table or
+ *                             an alias key from $extra. Default 'id'.
+ * @param string   $direction  'ASC' or 'DESC' (case-insensitive). Anything else falls back to 'ASC'.
+ * @param array    $extra      Computed columns as [alias => subquery SQL]. Each subquery
+ *                             should return one value per row of $table and may refer to
+ *                             the main table by name (e.g. users.id). Pass [] for none.
+ *                             WARNING: this is raw SQL. Write it in your code and never
+ *                             build it from $_GET, $_POST or any other user input.
+ *
+ * @return array[] Matching rows, each including all columns of $table plus one
+ *                 column per $extra alias. Empty array if nothing matches.
+ *
+ * @throws PDOException If the query fails.
+ *
+ * @example
+ * // Simple: first 10 active users matching "ann", sorted by id.
+ * $users = ListRecords($pdo, 'users', ['is_active' => 1], ['fname', 'lname'], 'ann', 10, 0, 'id', 'ASC');
+ *
+ * // With each user's roles as one text value ("Admin, Teacher"),
+ * // paired with CountList() for pagination:
+ * $conditions = ['is_active' => 1];
+ * $searchCols = ['fname', 'lname'];
+ * $keyword    = $_GET['search'] ?? '';
+ * $perPage    = 10;
+ * $page       = max(1, (int) ($_GET['PageNum'] ?? 1));
+ * $offset     = ($page - 1) * $perPage;
+ *
+ * $extra = [
+ *     'roles' => "SELECT GROUP_CONCAT(r.role, ', ')
+ *                 FROM user_roles ur
+ *                 JOIN roles r ON r.role_id = ur.role
+ *                 WHERE ur.user_id = users.id"
+ * ];
+ *
+ * $total      = CountList($pdo, 'users', $conditions, $searchCols, $keyword);
+ * $totalPages = (int) ceil($total / $perPage);
+ * $rows       = ListRecords($pdo, 'users', $conditions, $searchCols, $keyword,
+ *                           $perPage, $offset, 'roles', 'ASC', $extra);
+ *
+ * // In the table: echo htmlspecialchars($row['roles'] ?? '');
  */
 function ListRecords(PDO $pdo, string $table, array $conditions, array $searchCols, string $keyword,
-                     int $limit, int $offset, string $orderBy = 'id', string $direction = 'ASC'): array
+                     int $limit, int $offset, string $orderBy = 'id', string $direction = 'ASC',
+                     array $extra = []): array
 {
     $direction = strtoupper($direction) === 'DESC' ? 'DESC' : 'ASC';
     [$where, $params] = buildListWhere($conditions, $searchCols, $keyword);
 
-    $sql = "SELECT * FROM " . safeIdentifier($table) . $where .
-           " ORDER BY " . safeIdentifier($orderBy) . " $direction" .
+    // main table columns, plus any extra computed columns
+    $select = safeIdentifier($table) . '.*';
+    foreach ($extra as $alias => $sql) {
+        $select .= ", ($sql) AS " . safeIdentifier($alias);
+    }
+
+    // sort by an extra column (alias) or by a real column of the main table
+    $orderCol = array_key_exists($orderBy, $extra)
+        ? safeIdentifier($orderBy)
+        : safeIdentifier($table) . '.' . safeIdentifier($orderBy);
+
+    $sql = "SELECT $select FROM " . safeIdentifier($table) . $where .
+           " ORDER BY $orderCol $direction" .
            " LIMIT " . max(0, $limit) . " OFFSET " . max(0, $offset);
 
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
     return $stmt->fetchAll();
+}
+/**
+ * Turn foreign keys into SELECT columns + LEFT JOINs.
+ * $fks = ['role_id' => 'roles.name']  means: users.role_id -> roles.id, show roles.name
+ * The joined value comes back as $row['role_name'] (fk column minus "_id", plus "_name").
+ * Assumes the referenced table's primary key is "id".
+ *
+ * @return array [selectSql, joinSql, aliasNames]
+ */
+function buildFkJoins(string $table, array $fks): array
+{
+    $select  = [safeIdentifier($table) . '.*'];
+    $joins   = '';
+    $aliases = [];
+
+    foreach ($fks as $fkCol => $target) {
+        [$refTable, $refCol] = explode('.', $target);
+        $join  = 'j_' . $fkCol;                                  // unique alias per join
+        $label = preg_replace('/_id$/', '', $fkCol) . '_name';   // role_id -> role_name
+
+        $select[]  = safeIdentifier($join) . '.' . safeIdentifier($refCol) . ' AS ' . safeIdentifier($label);
+        $joins    .= ' LEFT JOIN ' . safeIdentifier($refTable) . ' AS ' . safeIdentifier($join)
+                   . ' ON ' . safeIdentifier($join) . '.id = '
+                   . safeIdentifier($table) . '.' . safeIdentifier($fkCol);
+        $aliases[] = $label;
+    }
+    return [implode(', ', $select), $joins, $aliases];
 }

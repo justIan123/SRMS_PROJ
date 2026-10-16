@@ -15,4 +15,3 @@ try {
 } catch (PDOException $e) {
     die("SQLite connection failed: " . $e->getMessage());
 }
-?>

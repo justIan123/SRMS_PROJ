@@ -2,74 +2,125 @@
 require_once("../public/initialize.php");
 require_once(CONFIG_PATH . DS . "db_sqlite.php");
 require_once(FUNCTIONS_PATH . DS . "DbFunctions.php");
+require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
+require_once(FUNCTIONS_PATH . DS . "schoolFunctions.php");
 
-$self = COMPONENTS_URL . 'manage_users.php';
-// http://localhost/1_SRMS/components/manage_users.php
+$self  = COMPONENTS_URL . 'manage_users.php';
+$table = 'users';
+
+// Everything belongs to the current school year
+$year = CurrentSchoolYear($pdo);
+if (!$year) {
+    echo alertBox('warning', 'No school year is running. Start one in School Years first.');
+    return;
+}
+$where = [];
 
 // ---- search ----
 $search = trim($_GET['search'] ?? '');
-$cols   = ['username', 'email'];
+$cols   = ['fname', 'lname', 'phone', 'email'];
 
 // ---- sort ----
-$allowed = ['id', 'username', 'email'];
-$sort = in_array($_GET['sort'] ?? '', $allowed) ? $_GET['sort'] : 'id';
+$headers = ['id' => 'ID', 'fname' => 'First name', 'lname' => 'Last name', 'phone' => 'Phone', 'username' => 'Username', 'email' => 'Email', 'roles' => 'Role'];
+$sort = array_key_exists($_GET['sort'] ?? '', $headers) ? $_GET['sort'] : 'id';
 $dir  = ($_GET['dir'] ?? '') === 'DESC' ? 'DESC' : 'ASC';
 $flip = $dir === 'ASC' ? 'DESC' : 'ASC';
 
 // ---- pagination ----
-$perPage = 10;
-$total   = $search !== ''
-    ? CountSearchRecords($pdo, 'users', $cols, $search)
-    : CountRecords($pdo, 'users');
+$perPage    = (int)($_GET['PerPageLimit'] ?? 10);
+$total      = CountList($pdo, $table, $where, $cols, $search);
 $totalPages = max(1, ceil($total / $perPage));
-$page       = min(max(1, (int)($_GET['page'] ?? 1)), $totalPages);
-$offset     = ($page - 1) * $perPage;
+$page       = min(max(1, (int)($_GET['PageNum'] ?? 1)), $totalPages);
 
-$users = $search !== ''
-    ? SearchRecords($pdo, 'users', $cols, $search, $perPage, $offset, $sort, $dir)
-    : FindAll($pdo, 'users', $perPage, $offset, $sort, $dir);
+$extra = [
+    'roles' => "SELECT GROUP_CONCAT(r.role, ', ')
+                FROM user_roles ur
+                JOIN roles r ON r.role_id = ur.role
+                WHERE ur.user_id = users.id"
+];
 
-$editId = (int)($_GET['edit'] ?? 0);
+$rows   = ListRecords($pdo, $table, $where, $cols, $search, $perPage, ($page - 1) * $perPage, $sort, $dir, $extra);
+$editId = (int)($_GET['editId'] ?? 0);
 
-$s    = '&search=' . urlencode($search);               // keeps the search in every link
-$base = $self . "?sort=$sort&dir=$dir" . $s;           // keeps sort + search when changing page
-
-// page buttons: show 2 pages before and after the current one
-$start = max(1, $page - 2);
-$end   = min($totalPages, $page + 2);
-
-// values the update/delete handlers need to come back to the same view
+$s    = '&search=' . urlencode($search);
+$base = $self . "?sort=$sort&dir=$dir" . $s;
 $keep = ['sort' => $sort, 'dir' => $dir, 'page' => $page, 'search' => $search];
+
+$state = [
+    'sort'    => $sort,
+    'dir'     => $dir,
+    'page'     => $page,
+    'search'  => $search,
+    'PerPageLimit'  => $perPage,
+    'editId' => $editId 
+];
 ?>
 
 <div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner">
 
-    <h3>Manage Users</h3>
-    <div id="message"><?=  isset($msg)? $msg : "" ?></div>
+    <h3>Teachers <small class="text-muted fs-6"><?= htmlspecialchars($year['name']) ?></small></h3>
+    <div id="message"><?= $message ?? '' ?></div>
 
     <!-- CREATE -->
-    <form hx-post="<?= HANDLERS_URL ?>createUserProcess.php" class="mb-4">
-        <input name="username" placeholder="Username" required>
-        <input name="email" type="email" placeholder="Email">
-        <input name="password" type="password" placeholder="Password">
-        <button class="btn btn-primary">Create</button>
+    <form hx-post="<?= HANDLERS_URL . 'userProcess.php' ?>" class="mb-4 gap-2">
+        <input type="hidden" name="action" value="create">
+        <div class="row mb-3">
+            <div class="col">
+                <input name="fname" placeholder="First name" class="form-control" required>
+            </div>
+            <div class="col">
+                <input name="lname" placeholder="Last name" class="form-control" required>
+            </div>
+            <div class="col">
+                <input name="phone" placeholder="Phone" class="form-control">
+            </div>
+        </div>
+        <div class="row mb-3">
+            <div class="col">
+                <input name="username" type="text" placeholder="Username" class="form-control">
+            </div>
+            <div class="col">
+                <input name="email" type="email" placeholder="Email" class="form-control" required>
+            </div>
+            <div class="col d-flex justify-content-end">
+                <button class="btn btn-primary">Create</button>
+            </div>
+        </div>
     </form>
 
-    <!-- SEARCH -->
-    <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2">
-        <input type="hidden" name="sort" value="<?= $sort ?>">
-        <input type="hidden" name="dir" value="<?= $dir ?>">
-        <input type="text" name="search" class="form-control w-auto"
-               value="<?= htmlspecialchars($search) ?>" placeholder="Search username or email...">
-        <button class="btn btn-outline-primary">Search</button>
-        <?php if ($search !== ''): ?>
-            <a href="<?= $self ?>?sort=<?= $sort ?>&dir=<?= $dir ?>" class="btn btn-outline-secondary">Clear</a>
-        <?php endif; ?>
-    </form>
+    
+    <div class="row">
+        <div class="col-6">
+            <!-- SEARCH -->
+            <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2">
+                <input type="hidden" name="sort" value="<?= $sort ?>">
+                <input type="hidden" name="dir" value="<?= $dir ?>">
+                <input type="text" name="search" class="form-control w-auto" value="<?= htmlspecialchars($search) ?>" placeholder="Search...">
+                <button class="btn btn-outline-primary">Search</button>
+                <?php if ($search !== ''): ?>
+                    <a href="<?= makeUrl($self, $state, ['search' => '']) ?>" class="btn btn-outline-secondary">
+                        Clear
+                    </a>
+                <?php endif; ?>
+            </form>
+        </div>
 
-    <!-- update form (only exists while editing; the row inputs point to it) -->
+        <div class="col-6 d-flex justify-content-end">
+            <!-- limit rows -->
+            <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2">
+                <p class="mt-3"> Set Limit the No of rows</p>
+                <?php hiddenFields($state, ['per', 'page']); ?>
+                <input type="number" name="PerPageLimit" class="form-control w-auto"
+                    value="<?= htmlspecialchars($perPage) ?>" placeholder="Show limit of Rows...">
+                <button class="btn btn-outline-primary">Search</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- UPDATE form (only exists while editing) -->
     <?php if ($editId): ?>
-        <form id="editForm" hx-post="<?= HANDLERS_URL ?>updateUserProcess.php">
+        <form id="editForm" hx-post="<?= HANDLERS_URL ?>userProcess.php">
+            <input type="hidden" name="action" value="update">
             <input type="hidden" name="id" value="<?= $editId ?>">
             <?php foreach ($keep as $k => $v): ?>
                 <input type="hidden" name="<?= $k ?>" value="<?= htmlspecialchars($v) ?>">
@@ -80,47 +131,57 @@ $keep = ['sort' => $sort, 'dir' => $dir, 'page' => $page, 'search' => $search];
     <!-- TABLE -->
     <table class="table">
         <tr>
-            <th><a href="<?= $self ?>?sort=id&dir=<?= $flip . $s ?>">ID</a></th>
-            <th><a href="<?= $self ?>?sort=username&dir=<?= $flip . $s ?>">Username</a></th>
-            <th><a href="<?= $self ?>?sort=email&dir=<?= $flip . $s ?>">Email</a></th>
+            <?php foreach ($headers as $col => $label): ?>
+                <th>
+                    <a href="<?= makeUrl($self, $state, ['sort' => $col, 'dir' => $flip, 'page' => null]) ?>">
+                        <?= $label ?>
+                    </a>
+                </th>
+            <?php endforeach; ?>
             <th>Actions</th>
         </tr>
 
-        <?php if (!$users): ?>
-            <tr><td colspan="4" class="text-center text-muted">No users found.</td></tr>
+        <?php if (!$rows): ?>
+            <tr><td colspan="6" class="text-center text-muted">No Users found.</td></tr>
         <?php endif; ?>
 
-        <?php foreach ($users as $u): ?>
-            <?php if ($u['id'] == $editId): ?>
-                <!-- edit -->
+        <?php foreach ($rows as $r): ?>
+            <?php if ($r['id'] == $editId): ?>
+
                 <tr>
-                    <td><?= $u['id'] ?></td>
-                    <td><input form="editForm" name="username" value="<?= htmlspecialchars($u['username']) ?>" required></td>
-                    <td><input form="editForm" name="email" value="<?= htmlspecialchars($u['email'] ?? '') ?>"></td>
+                    <td><?= $r['id'] ?></td>
+                    <td><input form="editForm" name="fname" value="<?= htmlspecialchars($r['fname']) ?>" required></td>
+                    <td><input form="editForm" name="lname" value="<?= htmlspecialchars($r['lname']) ?>" required></td>
+                    <td><input form="editForm" name="phone" value="<?= htmlspecialchars($r['phone'] ?? '') ?>"></td>
+                    <td><input form="editForm" name="email" value="<?= htmlspecialchars($r['username'] ?? '') ?>"></td>
+                    <td><input form="editForm" name="email" value="<?= htmlspecialchars($r['email'] ?? '') ?>"></td>
+                    <td><input form="editForm" name="email" value="<?= htmlspecialchars($r['role'] ?? '') ?>"></td>
                     <td>
                         <button form="editForm" class="btn btn-sm btn-success">Save</button>
-                        <a href="<?= $base ?>&page=<?= $page ?>" class="btn btn-sm btn-secondary">Cancel</a>
+                        <a href="<?= makeUrl($self, $state, ['PageNum' => $page, 'editId' => null]) ?>" class="btn btn-sm btn-secondary">
+                            Cancel 
+                        </a>                        
                     </td>
                 </tr>
 
             <?php else: ?>
 
                 <tr>
-                    <td><?= $u['id'] ?></td>
-                    <td><?= htmlspecialchars($u['username']) ?></td>
-                    <td><?= htmlspecialchars($u['email'] ?? '') ?></td>
+                    <td><?= $r['id'] ?></td>
+                    <td><?= htmlspecialchars($r['fname']) ?></td>
+                    <td><?= htmlspecialchars($r['lname']) ?></td>
+                    <td><?= htmlspecialchars($r['phone'] ?? '') ?></td>
+                    <td><?= htmlspecialchars($r['username']) ?></td>
+                    <td><?= htmlspecialchars($r['email'] ?? '') ?></td>
+                    <td><?= htmlspecialchars($r['roles'] ?? '') ?></td>
                     <td>
-                        <a href="<?= $base ?>&page=<?= $page ?>&edit=<?= $u['id'] ?>" class="btn btn-sm btn-outline-primary">Edit</a>
-
-                        <!-- DELETE -->
+                        <a href="<?= makeUrl($self, $state, ['PageNum' => $page, 'editId' => $r['id']]) ?>" class="btn btn-sm btn-outline-primary">
+                            Edit
+                        </a>                        
                         <button class="btn btn-sm btn-outline-danger"
-                                hx-post="<?= HANDLERS_URL ?>deleteUserProcess.php"
-                                hx-vals='<?= htmlspecialchars(json_encode($keep + ['id' => $u['id']]), ENT_QUOTES) ?>'
-                                hx-confirm="Delete this user?">
-                                Delete
-                                <!-- <?= htmlspecialchars(json_encode($keep + ['id' => $u['id']]), ENT_QUOTES) ?>' -->
-                                <!-- {"sort":"id","dir":"ASC","page":1,"search":"","id":14}' {"sort":"id","dir":"ASC","page":1,"search":"","id":18}' -->
-                        </button>
+                                hx-post="<?= HANDLERS_URL ?>teacherProcess.php"
+                                hx-vals='<?= htmlspecialchars(json_encode($keep + ['action' => 'delete', 'id' => $r['id']]), ENT_QUOTES) ?>'
+                                hx-confirm="Delete this teacher?">Delete</button>
                     </td>
                 </tr>
 
@@ -128,31 +189,9 @@ $keep = ['sort' => $sort, 'dir' => $dir, 'page' => $page, 'search' => $search];
         <?php endforeach; ?>
     </table>
 
-    <!-- PAGINATION -->
-    <nav>
-        <ul class="pagination">
-
-            <li class="page-item <?= $page <= 1 ? 'disabled' : '' ?>">
-                <!-- get to prev page -->
-                <!-- http://localhost/1_SRMS/components/manage_users.php?sort=id&dir=ASC&search=&page=0 -->
-                <a class="page-link" href="<?= $base ?>&page=<?= $page - 1 ?>">&laquo;</a>
-            </li>
-
-            <?php for ($i = $start; $i <= $end; $i++): ?>
-                <!-- select specific page -->
-                <!-- http://localhost/1_SRMS/components/manage_users.php?sort=id&dir=ASC&search=&page=1 -->
-                <li class="page-item <?= $i == $page ? 'active' : '' ?>">
-                    <a class="page-link" href="<?= $base ?>&page=<?= $i ?>"><?= $i ?></a>
-                </li>
-            <?php endfor; ?>
-
-            <li class="page-item <?= $page >= $totalPages ? 'disabled' : '' ?>">
-                <!-- get to next page -->
-                <!-- http://localhost/1_SRMS/components/manage_users.php?sort=id&dir=ASC&search=&page=1 -->
-                <a class="page-link" href="<?= $base ?>&page=<?= $page + 1 ?>">&raquo;</a>
-            </li>
-
-        </ul>
-    </nav>
-
+    <!-- <?php renderPagination($base, $page, "tpage", $totalPages); ?> -->
+    <?php renderPagination(makeUrl($self, $state, []),$page ,"PageNum" ,$totalPages);  ?>
+    <!-- <pre>
+        <?php print_r($rows); ?>
+    </pre> -->
 </div>
