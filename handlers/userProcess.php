@@ -4,6 +4,7 @@ require_once(CONFIG_PATH . DS . "db_sqlite.php");
 require_once(FUNCTIONS_PATH . DS . "DbFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "schoolFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
+require_once(FUNCTIONS_PATH . DS . "setErrorFunctions.php");
 
 $year    = CurrentSchoolYear($pdo);
 $action  = $_POST['action'] ?? '';
@@ -18,6 +19,7 @@ try{
             'fname'          => trim($_POST['fname']),
             'lname'          => trim($_POST['lname']),
             'phone'          => trim($_POST['phone']) ?: null,
+            'username'          => trim($_POST['username']),
             'email'          => trim($_POST['email']) ?: null,
         ]);
         $message = renderAlert('User added', 'success.');
@@ -28,8 +30,17 @@ try{
             'fname' => trim($_POST['fname']),
             'lname' => trim($_POST['lname']),
             'phone' => trim($_POST['phone']) ?: null,
-            'email' => trim($_POST['email']) ?: null,
+            'username' => trim($_POST['username']) ?: null,
+            // 'email' => trim($_POST['email']) ?: null,
         ]);
+
+        if($_POST['assignRole']){
+            UpdateRecord($pdo, 'user_roles', $_POST['id'],[
+                'role' => trim($_POST['assignRole'])
+            ], $idColumn = 'user_id'
+            );
+        }
+
         $message = renderAlert('User updated', 'success.');
     }
 
@@ -47,7 +58,7 @@ try{
 }
 }catch(PDOException $e){
     $msg = SetErrorMessage($e);
-    err_log($e->getMessage());
+    // err_log($e->getMessage());
     $message = renderAlert($e->getMessage(), 'success');
 }
 

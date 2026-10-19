@@ -71,6 +71,11 @@ function InsertRecord(PDO $pdo, string $table, array $data): string
  * @param int $id - Name of the id you want to update data.
  * @param array $data - associative array.
  * @param string $idColumn - Name of the column of the id you want to update.
+ * @param string $idColumn Name of the primary key or identifier column. Defaults to 'id'.
+ * 
+ * @return int Number of rows affected by the update operation.
+ * @throws InvalidArgumentException If the provided data array is empty.
+ * @throws PDOException If the query execution fails.
  * Helper: use the func like this <br>
  * // UPDATE: returns the number of rows changed <br>
  * UpdateRecord($pdo, 'users', $id, ['name' => 'Juan D. Cruz']);

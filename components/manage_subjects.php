@@ -74,7 +74,7 @@ if ($assignId) {
                          FROM users u
                          JOIN user_roles ur ON ur.user_id = u.id
                          JOIN roles r ON r.role_id = ur.role
-                         WHERE r.role = 'teacher' AND u.is_active = 1
+                         WHERE ur.role = 3 AND u.is_active = 1
                          ORDER BY u.lname, u.fname");
     $teachers = $stmt->fetchAll();
 

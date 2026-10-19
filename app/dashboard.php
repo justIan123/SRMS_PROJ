@@ -151,7 +151,7 @@ require_once(INCLUDE_PATH . DS . "auth.php");
             hx-indicator="#global-spinner"
             onclick="setActive(this)"
             >
-            <i class="bi bi-calendar"></i>
+            <i class="bi bi-book"></i>
               Manage Subjects
           </div>
         </li>

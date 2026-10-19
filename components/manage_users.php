@@ -40,7 +40,9 @@ $extra = [
 ];
 
 $rows   = ListRecords($pdo, $table, $where, $cols, $search, $perPage, ($page - 1) * $perPage, $sort, $dir, $extra);
+
 $editId = (int)($_GET['editId'] ?? 0);
+$assignRole = (int)($_GET['$assignRole'] ?? 0);
 
 $s    = '&search=' . urlencode($search);
 $base = $self . "?sort=$sort&dir=$dir" . $s;
@@ -52,7 +54,8 @@ $state = [
     'page'     => $page,
     'search'  => $search,
     'PerPageLimit'  => $perPage,
-    'editId' => $editId 
+    'editId' => $editId,
+    'role' => $assignRole
 ];
 ?>
 
@@ -64,6 +67,7 @@ $state = [
     <!-- CREATE -->
     <form hx-post="<?= HANDLERS_URL . 'userProcess.php' ?>" class="mb-4 gap-2">
         <input type="hidden" name="action" value="create">
+        <input type="hidden" name="school_year_id" value="<?= $year = CurrentSchoolYear($pdo); ?>">
         <div class="row mb-3">
             <div class="col">
                 <input name="fname" placeholder="First name" class="form-control" required>
@@ -83,6 +87,11 @@ $state = [
                 <input name="email" type="email" placeholder="Email" class="form-control" required>
             </div>
             <div class="col d-flex justify-content-end">
+                <select class="form-select">
+                    <option value="1">Admin</option>
+                    <option value="2">Teacher</option>
+                    <option value="3">Employee</option>
+                </select>  
                 <button class="btn btn-primary">Create</button>
             </div>
         </div>
@@ -105,16 +114,26 @@ $state = [
             </form>
         </div>
 
-        <div class="col-6 d-flex justify-content-end">
-            <!-- limit rows -->
-            <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2">
-                <p class="mt-3"> Set Limit the No of rows</p>
-                <?php hiddenFields($state, ['per', 'page']); ?>
-                <input type="number" name="PerPageLimit" class="form-control w-auto"
-                    value="<?= htmlspecialchars($perPage) ?>" placeholder="Show limit of Rows...">
-                <button class="btn btn-outline-primary">Search</button>
-            </form>
+<div class="col-6 d-flex justify-content-end">
+    <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2 align-items-start">
+
+        <div class="form-floating">
+            <input
+                type="number"
+                name="PerPageLimit"
+                class="form-control"
+                value="<?= htmlspecialchars($perPage) ?>"
+                id="limitRows"
+                placeholder="Rows">
+            <label for="limitRows">No. of rows</label>
         </div>
+
+        <button class="btn btn-outline-primary">
+            Set
+        </button>
+
+    </form>
+</div>
     </div>
 
     <!-- UPDATE form (only exists while editing) -->
@@ -150,12 +169,29 @@ $state = [
 
                 <tr>
                     <td><?= $r['id'] ?></td>
-                    <td><input form="editForm" name="fname" value="<?= htmlspecialchars($r['fname']) ?>" required></td>
-                    <td><input form="editForm" name="lname" value="<?= htmlspecialchars($r['lname']) ?>" required></td>
-                    <td><input form="editForm" name="phone" value="<?= htmlspecialchars($r['phone'] ?? '') ?>"></td>
-                    <td><input form="editForm" name="email" value="<?= htmlspecialchars($r['username'] ?? '') ?>"></td>
-                    <td><input form="editForm" name="email" value="<?= htmlspecialchars($r['email'] ?? '') ?>"></td>
-                    <td><input form="editForm" name="email" value="<?= htmlspecialchars($r['role'] ?? '') ?>"></td>
+                    <td><input class="form-control form-control-sm" form="editForm" name="fname" value="<?= htmlspecialchars($r['fname']) ?>" required></td>
+                    <td><input class="form-control form-control-sm" form="editForm" name="lname" value="<?= htmlspecialchars($r['lname']) ?>" required></td>
+                    <td><input class="form-control form-control-sm" form="editForm" name="phone" value="<?= htmlspecialchars($r['phone'] ?? '') ?>"></td>
+                    <td><input class="form-control form-control-sm" form="editForm" name="username" value="<?= htmlspecialchars($r['username'] ?? '') ?>"></td>
+                    <td><?= htmlspecialchars($r['email'] ?? '') ?></td>
+                    <!-- <td><input class="form-control form-control-sm" form="editForm" name="email" value="<?= htmlspecialchars($r['roles'] ?? '') ?>"></td> -->
+                    <td>                        
+                        <select class="form-select" form="editForm" name="assignRole">
+                            <?php if($r['roles'] == "admin"): ?>
+                                <option value="1">Admin</option>
+                                <option value="3">Teacher</option>
+                                <option value="2">Employee</option>
+                            <?php elseif($r['roles'] == "teacher"): ?>
+                                <option value="3">Teacher</option>
+                                <option value="1">Admin</option>
+                                <option value="2">Employee</option>
+                            <?php else: ?>
+                                <option value="2">Employee</option>
+                                <option value="3">Teacher</option>
+                                <option value="1">Admin</option>
+                            <?php endif; ?>
+                        </select>                  
+                    </td>
                     <td>
                         <button form="editForm" class="btn btn-sm btn-success">Save</button>
                         <a href="<?= makeUrl($self, $state, ['PageNum' => $page, 'editId' => null]) ?>" class="btn btn-sm btn-secondary">

@@ -6,7 +6,9 @@ require_once(FUNCTIONS_PATH . DS . "schoolFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 
 $self  = COMPONENTS_URL . 'manage_teachers.php';
-$table = 'teachers';
+// this is suppose to be teacher but it seems the logic is that the users is already exist 
+// and the roles of the teacher in the user table is alreadyexist
+$table = 'users'; 
 
 // Everything belongs to the current school year
 $year = CurrentSchoolYear($pdo);
@@ -77,10 +79,10 @@ $state = [
             </form>
         </div>
 
-        <div class="col-6 d-flex justify-content-end">
+        <div class="col-6 justify-content-end">
             <!-- limit rows -->
             <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2">
-                <p class="mt-3"> Set Limit the No of rows</p>
+                <p> Set Limit the No of rows</p>
                 <?php hiddenFields($state, ['per', 'page']); ?>
                 <input type="number" name="PerPageLimit" class="form-control w-auto"
                     value="<?= htmlspecialchars($perPage) ?>" placeholder="Show limit of Rows...">
@@ -118,10 +120,10 @@ $state = [
 
                 <tr>
                     <td><?= $r['id'] ?></td>
-                    <td><input form="editForm" name="fname" value="<?= htmlspecialchars($r['fname']) ?>" required></td>
-                    <td><input form="editForm" name="lname" value="<?= htmlspecialchars($r['lname']) ?>" required></td>
-                    <td><input form="editForm" name="phone" value="<?= htmlspecialchars($r['phone'] ?? '') ?>"></td>
-                    <td><input form="editForm" name="email" value="<?= htmlspecialchars($r['email'] ?? '') ?>"></td>
+                    <td><input class="form-control form-control-sm" form="editForm" name="fname" value="<?= htmlspecialchars($r['fname']) ?>" required></td>
+                    <td><input class="form-control form-control-sm" form="editForm" name="lname" value="<?= htmlspecialchars($r['lname']) ?>" required></td>
+                    <td><input class="form-control form-control-sm" form="editForm" name="phone" value="<?= htmlspecialchars($r['phone'] ?? '') ?>"></td>
+                    <td><input class="form-control form-control-sm" form="editForm" name="email" value="<?= htmlspecialchars($r['email'] ?? '') ?>"></td>
                     <td>
                         <button form="editForm" class="btn btn-sm btn-success">Save</button>
                         <a href="<?= $base ?>&page=<?= $page ?>" class="btn btn-sm btn-secondary">Cancel</a>

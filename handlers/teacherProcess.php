@@ -27,7 +27,7 @@ if ($year) {
             'fname' => trim($_POST['fname']),
             'lname' => trim($_POST['lname']),
             'phone' => trim($_POST['phone']) ?: null,
-            'email' => trim($_POST['email']) ?: null,
+            // 'email' => trim($_POST['email']) ?: null,
         ]);
         $message = renderAlert('Teacher updated.', 'success');
     }
