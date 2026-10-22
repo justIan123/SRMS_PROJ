@@ -7,6 +7,8 @@ require_once(FUNCTIONS_PATH . DS . "schoolFunctions.php");
 
 $self  = COMPONENTS_URL . 'manage_users.php';
 $table = 'users';
+// $admins = FindWhere($pdo, 'user_roles', ['role' => 1]);
+$isAdminExist = RecordExists($pdo, 'user_roles', 'role', 1);
 
 // Everything belongs to the current school year
 $year = CurrentSchoolYear($pdo);
@@ -88,7 +90,6 @@ $state = [
             </div>
             <div class="col d-flex justify-content-end">
                 <select class="form-select">
-                    <option value="1">Admin</option>
                     <option value="2">Teacher</option>
                     <option value="3">Employee</option>
                 </select>  
@@ -178,17 +179,14 @@ $state = [
                     <td>                        
                         <select class="form-select" form="editForm" name="assignRole">
                             <?php if($r['roles'] == "admin"): ?>
-                                <option value="1">Admin</option>
                                 <option value="3">Teacher</option>
                                 <option value="2">Employee</option>
                             <?php elseif($r['roles'] == "teacher"): ?>
                                 <option value="3">Teacher</option>
-                                <option value="1">Admin</option>
                                 <option value="2">Employee</option>
                             <?php else: ?>
                                 <option value="2">Employee</option>
                                 <option value="3">Teacher</option>
-                                <option value="1">Admin</option>
                             <?php endif; ?>
                         </select>                  
                     </td>
@@ -204,13 +202,17 @@ $state = [
 
                 <tr>
                     <td><?= $r['id'] ?></td>
-                    <td><?= htmlspecialchars($r['fname']) ?></td>
-                    <td><?= htmlspecialchars($r['lname']) ?></td>
+                    <td><?= htmlspecialchars($r['fname'] ?? '') ?></td>
+                    <td><?= htmlspecialchars($r['lname'] ?? '') ?></td>
                     <td><?= htmlspecialchars($r['phone'] ?? '') ?></td>
-                    <td><?= htmlspecialchars($r['username']) ?></td>
+                    <td><?= htmlspecialchars($r['username'] ?? '') ?></td>
                     <td><?= htmlspecialchars($r['email'] ?? '') ?></td>
                     <td><?= htmlspecialchars($r['roles'] ?? '') ?></td>
                     <td>
+                        <?php if($r['roles'] == 'admin'): ?>
+
+                        <?php else:?>
+
                         <a href="<?= makeUrl($self, $state, ['PageNum' => $page, 'editId' => $r['id']]) ?>" class="btn btn-sm btn-outline-primary">
                             Edit
                         </a>                        
@@ -218,6 +220,8 @@ $state = [
                                 hx-post="<?= HANDLERS_URL ?>teacherProcess.php"
                                 hx-vals='<?= htmlspecialchars(json_encode($keep + ['action' => 'delete', 'id' => $r['id']]), ENT_QUOTES) ?>'
                                 hx-confirm="Delete this teacher?">Delete</button>
+                        <?php endif?>        
+
                     </td>
                 </tr>
 

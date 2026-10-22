@@ -43,7 +43,7 @@ require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
             </div>
 
             <div class="col-6">
-                <form action="register_page" method="POST">
+                <form method="POST">
                     <div class="mb-3">
                         <h3>Register</h3>
                     </div>

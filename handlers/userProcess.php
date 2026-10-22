@@ -9,6 +9,7 @@ require_once(FUNCTIONS_PATH . DS . "setErrorFunctions.php");
 $year    = CurrentSchoolYear($pdo);
 $action  = $_POST['action'] ?? '';
 $message = '';
+$isAdminExist = RecordExists($pdo, 'user_roles', 'role', 1);
 
 try{
     if ($year) {

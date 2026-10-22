@@ -39,7 +39,8 @@ require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
             </div>
 
             <div class="col-6">
-                <form action="login_page" method="POST">
+                <!-- self post because the logic for login is already included -->
+                <form method="POST">
                     <div class="mb-3">
                         <h3>Log-in</h3>
                     </div>

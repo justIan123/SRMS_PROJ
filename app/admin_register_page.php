@@ -45,7 +45,8 @@ require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
             </div>
 
             <div class="col-6">
-                <form action="admin_register_page" method="POST">
+                <!-- self post because the logic for admin-register is already included -->
+                <form method="POST">
                     <div class="mb-3">
                         <h3>Admin Register</h3>
                     </div>
