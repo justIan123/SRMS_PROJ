@@ -1,9 +1,39 @@
-<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="sqlite.db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="0"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="100"/><column_width id="3" width="2275"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><table title="guardians" custom_title="0" dock_id="1" table="4,9:mainguardians"/><dock_state state="000000ff00000000fd0000000100000002000003db000002dcfc0100000001fb000000160064006f0063006b00420072006f00770073006500310100000000000003db0000012900ffffff000002690000000000000004000000040000000800000008fc00000000"/><default_encoding codec=""/><browse_table_settings><table schema="main" name="guardians" show_row_id="0" encoding="" plot_x_axis="" unlock_view_pk="_rowid_" freeze_columns="0"><sort/><column_widths><column index="1" value="35"/><column index="2" value="96"/><column index="3" value="95"/><column index="4" value="87"/><column index="5" value="95"/><column index="6" value="239"/></column_widths><filter_values/><conditional_formats/><row_id_formats/><display_formats/><hidden_columns/><plot_y_axes/><global_filter/></table></browse_table_settings></tab_browse><tab_sql><sql name="SQL 1*">CREATE TABLE &quot;subjects&quot; (
+<?xml version="1.0" encoding="UTF-8"?><sqlb_project><db path="sqlite.db" readonly="0" foreign_keys="1" case_sensitive_like="0" temp_store="0" wal_autocheckpoint="1000" synchronous="2"/><attached/><window><main_tabs open="structure browser pragmas query" current="3"/></window><tab_structure><column_width id="0" width="300"/><column_width id="1" width="0"/><column_width id="2" width="100"/><column_width id="3" width="3300"/><column_width id="4" width="0"/><expanded_item id="0" parent="1"/><expanded_item id="1" parent="1"/><expanded_item id="2" parent="1"/><expanded_item id="3" parent="1"/></tab_structure><tab_browse><table title="guardians" custom_title="0" dock_id="1" table="4,9:mainguardians"/><dock_state state="000000ff00000000fd00000001000000020000000000000000fc0100000001fb000000160064006f0063006b00420072006f00770073006500310100000000ffffffff0000011e00ffffff000000000000000000000004000000040000000800000008fc00000000"/><default_encoding codec=""/><browse_table_settings/></tab_browse><tab_sql><sql name="SQL 1*">-- Run this once on your database. It adds the test maker tables.
+-- A test belongs to one teacher, one subject and one school year.
+
+CREATE TABLE &quot;tests&quot; (
 	&quot;id&quot;	INTEGER,
 	&quot;school_year_id&quot;	INTEGER NOT NULL,
-	&quot;subject_name&quot;	TEXT NOT NULL UNIQUE,
-	&quot;subject_description&quot;	TEXT,
-	&quot;is_active&quot;	INTEGER NOT NULL DEFAULT 1,
+	&quot;subject_id&quot;	INTEGER NOT NULL,
+	&quot;teacher_id&quot;	INTEGER NOT NULL,
+	&quot;title&quot;	TEXT NOT NULL,
+	&quot;time_limit&quot;	INTEGER,                              -- minutes, NULL = no limit
+	&quot;is_published&quot;	INTEGER NOT NULL DEFAULT 0,           -- 0 = draft, 1 = published
+	&quot;created_at&quot;	TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	PRIMARY KEY(&quot;id&quot; AUTOINCREMENT),
-	FOREIGN KEY(&quot;school_year_id&quot;) REFERENCES &quot;school_years&quot;(&quot;id&quot;)
-);</sql><current_tab id="0"/></tab_sql></sqlb_project>
+	FOREIGN KEY(&quot;school_year_id&quot;) REFERENCES &quot;school_years&quot;(&quot;id&quot;),
+	FOREIGN KEY(&quot;subject_id&quot;) REFERENCES &quot;subjects&quot;(&quot;id&quot;),
+	FOREIGN KEY(&quot;teacher_id&quot;) REFERENCES &quot;users&quot;(&quot;id&quot;)
+);
+
+CREATE TABLE &quot;questions&quot; (
+	&quot;id&quot;	INTEGER,
+	&quot;test_id&quot;	INTEGER NOT NULL,
+	&quot;question_text&quot;	TEXT NOT NULL,
+	&quot;points&quot;	INTEGER NOT NULL DEFAULT 1,
+	PRIMARY KEY(&quot;id&quot; AUTOINCREMENT),
+	FOREIGN KEY(&quot;test_id&quot;) REFERENCES &quot;tests&quot;(&quot;id&quot;) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE TABLE &quot;choices&quot; (
+	&quot;id&quot;	INTEGER,
+	&quot;question_id&quot;	INTEGER NOT NULL,
+	&quot;choice_text&quot;	TEXT NOT NULL,
+	&quot;is_correct&quot;	INTEGER NOT NULL DEFAULT 0,           -- exactly one per question
+	PRIMARY KEY(&quot;id&quot; AUTOINCREMENT),
+	FOREIGN KEY(&quot;question_id&quot;) REFERENCES &quot;questions&quot;(&quot;id&quot;) ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+CREATE INDEX &quot;idx_tests_teacher_year&quot; ON &quot;tests&quot;(&quot;teacher_id&quot;, &quot;school_year_id&quot;);
+CREATE INDEX &quot;idx_questions_test&quot;     ON &quot;questions&quot;(&quot;test_id&quot;);
+CREATE INDEX &quot;idx_choices_question&quot;   ON &quot;choices&quot;(&quot;question_id&quot;);</sql><current_tab id="0"/></tab_sql></sqlb_project>

@@ -38,12 +38,13 @@ if ($year) {
     }
 }
 
-// keep the same sort, search and page
+// Hand the page its state back (same keys as $state in manage_teachers.php)
 $_GET = [
-    'sort'   => $_POST['sort']   ?? '',
-    'dir'    => $_POST['dir']    ?? '',
-    'page'   => $_POST['page']   ?? 1,
-    'search' => $_POST['search'] ?? '',
+    'sort'         => $_POST['sort']         ?? '',
+    'dir'          => $_POST['dir']          ?? '',
+    'tpage'        => $_POST['tpage']        ?? 1,
+    'search'       => $_POST['search']       ?? '',
+    'PerPageLimit' => $_POST['PerPageLimit'] ?? 10,
 ];
 
 require_once(COMPONENTS_PATH . DS . "manage_teachers.php");

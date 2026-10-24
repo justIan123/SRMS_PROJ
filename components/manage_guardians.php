@@ -35,9 +35,14 @@ $page       = min(max(1, (int)($_GET['gpage'] ?? 1)), $totalPages);
 $rows   = ListRecords($pdo, $table, $where, $cols, $search, $perPage, ($page - 1) * $perPage, $sort, $dir);
 $editId = (int)($_GET['edit'] ?? 0);
 
-$s    = '&search=' . urlencode($search);
-$base = $self . "?sort=$sort&dir=$dir" . $s;
-$keep = ['sort' => $sort, 'dir' => $dir, 'page' => $page, 'search' => $search];
+// Current state of the page. makeUrl() builds every link from this,
+// and the edit/delete requests send it back so the page looks the same afterwards.
+$state = [
+    'sort'   => $sort,
+    'dir'    => $dir,
+    'search' => $search,
+    'gpage'  => $page,
+];
 ?>
 
 <div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner">
@@ -62,7 +67,7 @@ $keep = ['sort' => $sort, 'dir' => $dir, 'page' => $page, 'search' => $search];
         <input type="text" name="search" class="form-control w-auto" value="<?= htmlspecialchars($search) ?>" placeholder="Search...">
         <button class="btn btn-outline-primary">Search</button>
         <?php if ($search !== ''): ?>
-            <a href="<?= $self ?>?sort=<?= $sort ?>&dir=<?= $dir ?>" class="btn btn-outline-secondary">Clear</a>
+            <a href="<?= makeUrl($self, $state, ['search' => '', 'gpage' => null]) ?>" class="btn btn-outline-secondary">Clear</a>
         <?php endif; ?>
     </form>
 
@@ -71,7 +76,7 @@ $keep = ['sort' => $sort, 'dir' => $dir, 'page' => $page, 'search' => $search];
         <form id="editForm" hx-post="<?= HANDLERS_URL ?>guardianProcess.php">
             <input type="hidden" name="action" value="update">
             <input type="hidden" name="id" value="<?= $editId ?>">
-            <?php foreach ($keep as $k => $v): ?>
+            <?php foreach ($state as $k => $v): ?>
                 <input type="hidden" name="<?= $k ?>" value="<?= htmlspecialchars($v) ?>">
             <?php endforeach; ?>
         </form>
@@ -81,7 +86,7 @@ $keep = ['sort' => $sort, 'dir' => $dir, 'page' => $page, 'search' => $search];
     <table class="table">
         <tr>
             <?php foreach ($headers as $col => $label): ?>
-                <th><a href="<?= $self ?>?sort=<?= $col ?>&dir=<?= $flip . $s ?>"><?= $label ?></a></th>
+                <th><a href="<?= makeUrl($self, $state, ['sort' => $col, 'dir' => $flip, 'gpage' => null]) ?>"><?= $label ?></a></th>
             <?php endforeach; ?>
             <th>Actions</th>
         </tr>
@@ -101,7 +106,7 @@ $keep = ['sort' => $sort, 'dir' => $dir, 'page' => $page, 'search' => $search];
                     <td><input form="editForm" name="email" value="<?= htmlspecialchars($r['email'] ?? '') ?>"></td>
                     <td>
                         <button form="editForm" class="btn btn-sm btn-success">Save</button>
-                        <a href="<?= $base ?>&page=<?= $page ?>" class="btn btn-sm btn-secondary">Cancel</a>
+                        <a href="<?= makeUrl($self, $state) ?>" class="btn btn-sm btn-secondary">Cancel</a>
                     </td>
                 </tr>
 
@@ -114,10 +119,10 @@ $keep = ['sort' => $sort, 'dir' => $dir, 'page' => $page, 'search' => $search];
                     <td><?= htmlspecialchars($r['phone'] ?? '') ?></td>
                     <td><?= htmlspecialchars($r['email'] ?? '') ?></td>
                     <td>
-                        <a href="<?= $base ?>&page=<?= $page ?>&edit=<?= $r['id'] ?>" class="btn btn-sm btn-outline-primary">Edit</a>
+                        <a href="<?= makeUrl($self, $state, ['edit' => $r['id']]) ?>" class="btn btn-sm btn-outline-primary">Edit</a>
                         <button class="btn btn-sm btn-outline-danger"
                                 hx-post="<?= HANDLERS_URL ?>guardianProcess.php"
-                                hx-vals='<?= htmlspecialchars(json_encode($keep + ['action' => 'delete', 'id' => $r['id']]), ENT_QUOTES) ?>'
+                                hx-vals='<?= htmlspecialchars(json_encode($state + ['action' => 'delete', 'id' => $r['id']]), ENT_QUOTES) ?>'
                                 hx-confirm="Delete this guardian?">Delete</button>
                     </td>
                 </tr>
@@ -126,6 +131,6 @@ $keep = ['sort' => $sort, 'dir' => $dir, 'page' => $page, 'search' => $search];
         <?php endforeach; ?>
     </table>
 
-    <?php renderPagination($base, $page, "gpage", $totalPages); ?>
+    <?php renderPagination(makeUrl($self, $state, ['gpage' => null]), $page, "gpage", $totalPages); ?>
 
 </div>

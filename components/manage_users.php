@@ -44,20 +44,15 @@ $extra = [
 $rows   = ListRecords($pdo, $table, $where, $cols, $search, $perPage, ($page - 1) * $perPage, $sort, $dir, $extra);
 
 $editId = (int)($_GET['editId'] ?? 0);
-$assignRole = (int)($_GET['$assignRole'] ?? 0);
 
-$s    = '&search=' . urlencode($search);
-$base = $self . "?sort=$sort&dir=$dir" . $s;
-$keep = ['sort' => $sort, 'dir' => $dir, 'page' => $page, 'search' => $search];
-
+// Current state of the page. makeUrl() builds every link from this,
+// and the edit/delete requests send it back so the page looks the same afterwards.
 $state = [
-    'sort'    => $sort,
-    'dir'     => $dir,
-    'page'     => $page,
-    'search'  => $search,
-    'PerPageLimit'  => $perPage,
-    'editId' => $editId,
-    'role' => $assignRole
+    'sort'         => $sort,
+    'dir'          => $dir,
+    'search'       => $search,
+    'PerPageLimit' => $perPage,
+    'PageNum'      => $page,
 ];
 ?>
 
@@ -92,13 +87,13 @@ $state = [
                 <select class="form-select">
                     <option value="2">Teacher</option>
                     <option value="3">Employee</option>
-                </select>  
+                </select>
                 <button class="btn btn-primary">Create</button>
             </div>
         </div>
     </form>
 
-    
+
     <div class="row">
         <div class="col-6">
             <!-- SEARCH -->
@@ -108,7 +103,7 @@ $state = [
                 <input type="text" name="search" class="form-control w-auto" value="<?= htmlspecialchars($search) ?>" placeholder="Search...">
                 <button class="btn btn-outline-primary">Search</button>
                 <?php if ($search !== ''): ?>
-                    <a href="<?= makeUrl($self, $state, ['search' => '']) ?>" class="btn btn-outline-secondary">
+                    <a href="<?= makeUrl($self, $state, ['search' => '', 'PageNum' => null]) ?>" class="btn btn-outline-secondary">
                         Clear
                     </a>
                 <?php endif; ?>
@@ -142,7 +137,7 @@ $state = [
         <form id="editForm" hx-post="<?= HANDLERS_URL ?>userProcess.php">
             <input type="hidden" name="action" value="update">
             <input type="hidden" name="id" value="<?= $editId ?>">
-            <?php foreach ($keep as $k => $v): ?>
+            <?php foreach ($state as $k => $v): ?>
                 <input type="hidden" name="<?= $k ?>" value="<?= htmlspecialchars($v) ?>">
             <?php endforeach; ?>
         </form>
@@ -153,7 +148,7 @@ $state = [
         <tr>
             <?php foreach ($headers as $col => $label): ?>
                 <th>
-                    <a href="<?= makeUrl($self, $state, ['sort' => $col, 'dir' => $flip, 'page' => null]) ?>">
+                    <a href="<?= makeUrl($self, $state, ['sort' => $col, 'dir' => $flip, 'PageNum' => null]) ?>">
                         <?= $label ?>
                     </a>
                 </th>
@@ -176,7 +171,7 @@ $state = [
                     <td><input class="form-control form-control-sm" form="editForm" name="username" value="<?= htmlspecialchars($r['username'] ?? '') ?>"></td>
                     <td><?= htmlspecialchars($r['email'] ?? '') ?></td>
                     <!-- <td><input class="form-control form-control-sm" form="editForm" name="email" value="<?= htmlspecialchars($r['roles'] ?? '') ?>"></td> -->
-                    <td>                        
+                    <td>
                         <select class="form-select" form="editForm" name="assignRole">
                             <?php if($r['roles'] == "admin"): ?>
                                 <option value="3">Teacher</option>
@@ -188,13 +183,13 @@ $state = [
                                 <option value="2">Employee</option>
                                 <option value="3">Teacher</option>
                             <?php endif; ?>
-                        </select>                  
+                        </select>
                     </td>
                     <td>
                         <button form="editForm" class="btn btn-sm btn-success">Save</button>
-                        <a href="<?= makeUrl($self, $state, ['PageNum' => $page, 'editId' => null]) ?>" class="btn btn-sm btn-secondary">
-                            Cancel 
-                        </a>                        
+                        <a href="<?= makeUrl($self, $state) ?>" class="btn btn-sm btn-secondary">
+                            Cancel
+                        </a>
                     </td>
                 </tr>
 
@@ -213,14 +208,14 @@ $state = [
 
                         <?php else:?>
 
-                        <a href="<?= makeUrl($self, $state, ['PageNum' => $page, 'editId' => $r['id']]) ?>" class="btn btn-sm btn-outline-primary">
+                        <a href="<?= makeUrl($self, $state, ['editId' => $r['id']]) ?>" class="btn btn-sm btn-outline-primary">
                             Edit
-                        </a>                        
+                        </a>
                         <button class="btn btn-sm btn-outline-danger"
                                 hx-post="<?= HANDLERS_URL ?>teacherProcess.php"
-                                hx-vals='<?= htmlspecialchars(json_encode($keep + ['action' => 'delete', 'id' => $r['id']]), ENT_QUOTES) ?>'
+                                hx-vals='<?= htmlspecialchars(json_encode($state + ['action' => 'delete', 'id' => $r['id']]), ENT_QUOTES) ?>'
                                 hx-confirm="Delete this teacher?">Delete</button>
-                        <?php endif?>        
+                        <?php endif?>
 
                     </td>
                 </tr>
@@ -229,8 +224,7 @@ $state = [
         <?php endforeach; ?>
     </table>
 
-    <!-- <?php renderPagination($base, $page, "tpage", $totalPages); ?> -->
-    <?php renderPagination(makeUrl($self, $state, []),$page ,"PageNum" ,$totalPages);  ?>
+    <?php renderPagination(makeUrl($self, $state, ['PageNum' => null]), $page, "PageNum", $totalPages); ?>
     <!-- <pre>
         <?php print_r($rows); ?>
     </pre> -->

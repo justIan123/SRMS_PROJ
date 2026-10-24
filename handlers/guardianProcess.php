@@ -45,11 +45,11 @@ if ($year) {
     }
 }
 
-// keep the same sort, search and page
+// Hand the page its state back (same keys as $state in manage_guardians.php)
 $_GET = [
     'sort'   => $_POST['sort']   ?? '',
     'dir'    => $_POST['dir']    ?? '',
-    'page'   => $_POST['page']   ?? 1,
+    'gpage'  => $_POST['gpage']  ?? 1,
     'search' => $_POST['search'] ?? '',
 ];
 
