@@ -5,7 +5,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-require_once(CONFIG_PATH . DS . "db_sqlite.php");
+require_once(DB_PATH);
 require_once(FUNCTIONS_PATH . DS . "securityFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "setErrorFunctions.php");
 require_once(DEBUG_PATH . "debugFunctions.php");

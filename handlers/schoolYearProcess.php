@@ -1,6 +1,6 @@
 <?php
 require_once("../public/initialize.php");
-require_once(CONFIG_PATH . DS . "db_sqlite.php");
+require_once(DB_PATH);
 require_once(FUNCTIONS_PATH . DS . "DbFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "schoolFunctions.php");

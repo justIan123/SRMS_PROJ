@@ -1,12 +1,14 @@
 <?php
 
-$host     = 'aws-0-ap-southeast-1.pooler.supabase.com'; // Your Supabase host
-$db       = 'postgres';                          // Default DB name
-$user     = 'postgres.jomzzddiybsqwrkhfyap';          // Database user
-$pass     = 'omzpwzCPHrpayUiB';            // Database password
-$port     = '5432';                              // Transaction pooler port (or 5432)
+require_once __DIR__ . 'bootstrap.php';
 
-$dsn = "pgsql:host=$host;port=$port;dbname=$db;";
+$host = $_ENV['SUPABASE_HOST'];
+$db   = $_ENV['SUPABASE_DB'];
+$user = $_ENV['SUPABASE_USER'];
+$pass = $_ENV['SUPABASE_PASS'];
+$port = $_ENV['SUPABASE_PORT'];
+
+$dsn = "pgsql:host=$host;port=$port;dbname=$db";
 
 try {
     $pdo = new PDO($dsn, $user, $pass, [
@@ -14,5 +16,5 @@ try {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
     ]);
 } catch (PDOException $e) {
-    echo "Connection failed: " . $e->getMessage();
+    die("PostgreSQL connection failed: " . $e->getMessage());
 }
