@@ -8,7 +8,7 @@ define("SITE_ROOT", dirname(__FILE__, 2));
 define("APP_PATH", SITE_ROOT . DS . "app");
 define("COMPONENTS_PATH", SITE_ROOT . DS . "components");
 define("CONFIG_PATH", SITE_ROOT . DS . "config");
-define("DB_PATH", CONFIG_PATH . DS . "db_sqlite.php");
+define("DB_PATH", CONFIG_PATH . DS . "db_supabase.php");
 define("DEV_PATH", SITE_ROOT . DS . "dev");
 define("DEBUG_PATH", SITE_ROOT . DS . "dev" . DS . "debug" . DS);
 define("LOGS_PATH", SITE_ROOT . DS . "dev" . DS . "logs" . DS);
@@ -17,6 +17,7 @@ define("HANDLERS_PATH", SITE_ROOT . DS . "handlers");
 define("INCLUDE_PATH", SITE_ROOT . DS . "include");
 define("PUBLIC_PATH", SITE_ROOT . DS . "public");
 define("IMAGES_PATH", SITE_ROOT . DS . "images");
+define("VENDOR_PATH", SITE_ROOT . DS . "vendor");
 
 // USAGE
 // require_once(INCLUDE_PATH . DS . "page.php");

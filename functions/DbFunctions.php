@@ -1,20 +1,93 @@
 <?php
 
+/**
+ * Works with SQLite and PostgreSQL (Supabase). The driver is detected from the
+ * PDO connection, so the same function calls run on both.
+ *
+ * What differs between the two, and how it is handled here:
+ *  - Identifier quoting: backticks (MySQL style) don't work in Postgres, so we use
+ *    double quotes, which both SQLite and Postgres accept.
+ *  - Insert IDs: lastInsertId() needs a sequence name in Postgres, so InsertRecord()
+ *    uses INSERT ... RETURNING there.
+ *  - Booleans: PHP false is sent as '' by PDO, which Postgres rejects for boolean
+ *    columns (and SQLite stores wrongly). Booleans are converted to 1/0 first.
+ *  - LIKE: case-sensitive in Postgres, case-insensitive in SQLite. Searches now use
+ *    LOWER(CAST(col AS TEXT)) LIKE ..., which behaves the same in both.
+ *  - GROUP_CONCAT (SQLite) is STRING_AGG (Postgres): use sqlGroupConcat().
+ */
+
+/**
+ * @param PDO $pdo - The database connection.
+ * @return string - 'sqlite', 'pgsql' (Postgres / Supabase) or whatever PDO reports.
+ */
+function dbDriver(PDO $pdo): string
+{
+    return $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+}
+
+/**
+ * @param PDO $pdo - The database connection.
+ * @return bool - true when connected to Postgres (Supabase).
+ */
+function isPostgres(PDO $pdo): bool
+{
+    return dbDriver($pdo) === 'pgsql';
+}
+
+/**
+ * @param mixed $value - A value you are about to bind as a parameter.
+ * @return mixed - Same value, except booleans become 1 / 0.
+ * Helper: PDO's execute() sends false as '' (empty string), which breaks boolean
+ * columns in Postgres. '1' and '0' are accepted by Postgres booleans AND by
+ * SQLite integer columns.
+ */
+function dbValue($value)
+{
+    return is_bool($value) ? (int) $value : $value;
+}
+
+/**
+ * @param array $values - Parameters (any keys).
+ * @return array - Same array with dbValue() applied to each value, keys kept.
+ */
+function dbValues(array $values): array
+{
+    return array_map('dbValue', $values);
+}
 
 /**
  * @param string $name - Name of the database table to search.
  * Helper: table/column names can't be bound as parameters, so we
  * validate them to prevent SQL injection.
- * 
+ * Quoted with double quotes, which work in both SQLite and Postgres.
+ * (Postgres treats quoted names as case-sensitive, so the name must match
+ * the table/column exactly as it was created. Supabase tables are normally lowercase.)
  */
 function safeIdentifier(string $name): string
 {
     if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $name)) {
         throw new InvalidArgumentException("Invalid identifier: $name");
     }
-    return "`$name`";
+    return '"' . $name . '"';
 }
- 
+
+/**
+ * @param string $expr - SQL expression to join together, e.g. 'r.role'.
+ *                       Write it in your code; never build it from user input.
+ * @param string $separator - Text placed between the values. Default ', '.
+ * @return string - GROUP_CONCAT(...) on SQLite, STRING_AGG(...) on Postgres.
+ * Helper: use inside the $extra subqueries of ListRecords() so they run on both. <br>
+ * 'roles' => "SELECT " . sqlGroupConcat($pdo, 'r.role') . " FROM user_roles ur ..."
+ */
+function sqlGroupConcat(PDO $pdo, string $expr, string $separator = ', '): string
+{
+    $sep = "'" . str_replace("'", "''", $separator) . "'";
+
+    return isPostgres($pdo)
+        ? "STRING_AGG(CAST($expr AS TEXT), $sep)"
+        : "GROUP_CONCAT($expr, $sep)";
+}
+
 /**
  * @param PDO $pdo - Name of the database table to search.
  * @param string $table - Name of the table to able to get the id.
@@ -29,7 +102,7 @@ function FindById(PDO $pdo, string $table, $id, string $idColumn = 'id'): ?array
     $sql  = "SELECT * FROM " . safeIdentifier($table) .
             " WHERE " . safeIdentifier($idColumn) . " = :id LIMIT 1";
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([':id' => $id]);
+    $stmt->execute([':id' => dbValue($id)]);
  
     $row = $stmt->fetch();
     return $row ?: null;
@@ -39,14 +112,21 @@ function FindById(PDO $pdo, string $table, $id, string $idColumn = 'id'): ?array
  * @param PDO $pdo - Name of the database table to search.
  * @param string $table - Name of the table you want to insert data.
  * @param array $data - associative array.
+ * @param string|null $idColumn - Column to return the new id from. Default is 'id'.
+ *                                Pass null for tables with no single id column
+ *                                (e.g. a pivot table like user_roles); it then returns ''
+ *                                on Postgres.
  * Helper: insert associative array data like this <br>
- * // INSERT: returns the new auto-increment ID <br>
+ * // INSERT: returns the new auto-increment ID (or the new uuid on Supabase) <br>
  * $id = InsertRecord($pdo, 'users', [ <br>
  * 'name'  => 'Juan Dela Cruz', <br>
  * 'email' => 'juan@example.com', <br>
- * ])
+ * ]) <br>
+ * <br>
+ * Postgres: uses INSERT ... RETURNING (lastInsertId() needs a sequence name there). <br>
+ * SQLite: uses lastInsertId().
  */
-function InsertRecord(PDO $pdo, string $table, array $data): string
+function InsertRecord(PDO $pdo, string $table, array $data, ?string $idColumn = 'id'): string
 {
     if (empty($data)) {
         throw new InvalidArgumentException('No data provided for insert.');
@@ -58,9 +138,22 @@ function InsertRecord(PDO $pdo, string $table, array $data): string
     $sql = "INSERT INTO " . safeIdentifier($table) .
            " (" . implode(', ', $columns) . ")" .
            " VALUES (" . implode(', ', $placeholders) . ")";
+
+    $postgres  = isPostgres($pdo);
+    $returning = $postgres && $idColumn !== null;
+    if ($returning) {
+        $sql .= " RETURNING " . safeIdentifier($idColumn);
+    }
  
     $stmt = $pdo->prepare($sql);
-    $stmt->execute($data);
+    $stmt->execute(dbValues($data));
+
+    if ($returning) {
+        return (string) $stmt->fetchColumn();
+    }
+    if ($postgres) {
+        return '';   // no id column to return
+    }
  
     return $pdo->lastInsertId();
 }
@@ -90,9 +183,9 @@ function UpdateRecord(PDO $pdo, string $table, $id, array $data, string $idColum
     $params = [];
     foreach ($data as $column => $value) {
         $sets[]                 = safeIdentifier($column) . " = :set_" . $column;
-        $params[':set_' . $column] = $value;
+        $params[':set_' . $column] = dbValue($value);
     }
-    $params[':id'] = $id;
+    $params[':id'] = dbValue($id);
  
     $sql = "UPDATE " . safeIdentifier($table) .
            " SET " . implode(', ', $sets) .
@@ -118,7 +211,7 @@ function DeleteRecord(PDO $pdo, string $table, $id, string $idColumn = 'id'): in
     $sql  = "DELETE FROM " . safeIdentifier($table) .
             " WHERE " . safeIdentifier($idColumn) . " = :id";
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([':id' => $id]);
+    $stmt->execute([':id' => dbValue($id)]);
  
     return $stmt->rowCount();
 }
@@ -184,7 +277,7 @@ function buildWhereClause(array $conditions): array
  
         $placeholder          = ':w_' . $column;
         $parts[]              = "$quoted = $placeholder";
-        $params[$placeholder] = $value;
+        $params[$placeholder] = dbValue($value);
     }
  
     return [' WHERE ' . implode(' AND ', $parts), $params];
@@ -268,17 +361,44 @@ function RecordExists(PDO $pdo, string $table, string $column, $value): bool
     $sql  = "SELECT 1 FROM " . safeIdentifier($table) .
             " WHERE " . safeIdentifier($column) . " = :value LIMIT 1";
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([':value' => $value]);
+    $stmt->execute([':value' => dbValue($value)]);
  
     return (bool) $stmt->fetchColumn();
 }
 
 
 /**
+ * @param array $columns - Column names to search in. A row matches if ANY column contains the keyword.
+ * @param string $keyword - The text to look for.
+ * @return array - [ $sqlFragment, $params ]. $sqlFragment looks like
+ *                 (LOWER(CAST("a" AS TEXT)) LIKE :kw0 ESCAPE '!' OR ...) and has no leading AND/WHERE.
+ * Helper (internal): case-insensitive "contains" search that behaves the same on SQLite and Postgres.
+ *  - LIKE is case-sensitive in Postgres, so both sides are lowercased.
+ *  - CAST(... AS TEXT) lets you search number/uuid columns too (Postgres refuses LIKE on those).
+ * Used by SearchRecords(), CountSearchRecords() and buildListWhere().
+ */
+function buildSearchClause(array $columns, string $keyword): array
+{
+    // Escape %, _ and the escape character itself so the text is matched literally.
+    // '!' is used as the escape character because it works in both Postgres and SQLite.
+    $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], mb_strtolower($keyword));
+
+    $parts  = [];
+    $params = [];
+    foreach (array_values($columns) as $i => $column) {
+        $placeholder          = ':kw' . $i;   // one placeholder per column
+        $parts[]              = "LOWER(CAST(" . safeIdentifier($column) . " AS TEXT)) LIKE $placeholder ESCAPE '!'";
+        $params[$placeholder] = '%' . $escaped . '%';
+    }
+
+    return ['(' . implode(' OR ', $parts) . ')', $params];
+}
+
+/**
  * @param PDO $pdo - The database connection from getConnection().
  * @param string $table - Name of the table you want to search.
  * @param array $columns - List of column names to search in, e.g. ['name', 'email']. A row matches if ANY column contains the keyword.
- * @param string $keyword - The text to look for (matches anywhere inside the value, case-insensitive in most MySQL setups).
+ * @param string $keyword - The text to look for (matches anywhere inside the value, case-insensitive on both SQLite and Postgres).
  * @param int $limit - Max number of rows to return. Default is 50.
  * @param int $offset - Number of rows to skip. Default is 0.
  * @param string $orderBy - Column to sort by. Default is 'id'.
@@ -310,20 +430,10 @@ function SearchRecords(
         throw new InvalidArgumentException('Provide at least one column to search.');
     }
  
-    // Escape %, _ and the escape character itself so the text is matched literally.
-    // '!' is used as the escape character because it works in both MySQL and SQLite.
-    $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $keyword);
- 
-    $conditions = [];
-    $params     = [];
-    foreach (array_values($columns) as $i => $column) {
-        $placeholder          = ':kw' . $i;   // one placeholder per column
-        $conditions[]         = safeIdentifier($column) . " LIKE $placeholder ESCAPE '!'";
-        $params[$placeholder] = '%' . $escaped . '%';
-    }
+    [$search, $params] = buildSearchClause($columns, $keyword);
  
     $sql = "SELECT * FROM " . safeIdentifier($table) .
-           " WHERE (" . implode(' OR ', $conditions) . ")" .
+           " WHERE " . $search .
            " ORDER BY " . safeIdentifier($orderBy) . " $direction" .
            " LIMIT " . max(0, $limit) . " OFFSET " . max(0, $offset);
  
@@ -351,18 +461,10 @@ function CountSearchRecords(PDO $pdo, string $table, array $columns, string $key
         throw new InvalidArgumentException('Provide at least one column to search.');
     }
  
-    $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $keyword);
- 
-    $conditions = [];
-    $params     = [];
-    foreach (array_values($columns) as $i => $column) {
-        $placeholder          = ':kw' . $i;
-        $conditions[]         = safeIdentifier($column) . " LIKE $placeholder ESCAPE '!'";
-        $params[$placeholder] = '%' . $escaped . '%';
-    }
+    [$search, $params] = buildSearchClause($columns, $keyword);
  
     $sql = "SELECT COUNT(*) FROM " . safeIdentifier($table) .
-           " WHERE (" . implode(' OR ', $conditions) . ")";
+           " WHERE " . $search;
  
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
@@ -376,7 +478,7 @@ function CountSearchRecords(PDO $pdo, string $table, array $columns, string $key
  
 /**
  * @param string $name - Column like "students.id" (table.column) or just "id".
- * @return string - Safely quoted, e.g. `students`.`id`
+ * @return string - Safely quoted, e.g. "students"."id"
  * Helper: same protection as safeIdentifier(), but allows one dot for table.column.
  */
 function safeQualified(string $name): string
@@ -387,6 +489,7 @@ function safeQualified(string $name): string
 /**
  * Helper (internal): builds the "FROM ... JOIN ..." part. Used by FindWithJoin() and CountWithJoin().
  * @param array $joins - [[TYPE, joinTable, leftColumn, rightColumn], ...] TYPE = INNER, LEFT or RIGHT.
+ * (RIGHT JOIN needs SQLite 3.39+; Postgres has always supported it.)
  */
 function buildJoinFrom(string $table, array $joins): string
 {
@@ -435,7 +538,7 @@ function buildJoinWhere(array $conditions): array
  
         $placeholder          = ':jw' . $i++;
         $parts[]              = "$quoted = $placeholder";
-        $params[$placeholder] = $value;
+        $params[$placeholder] = dbValue($value);
     }
  
     return [' WHERE ' . implode(' AND ', $parts), $params];
@@ -580,19 +683,16 @@ function CountWithJoin(PDO $pdo, string $table, array $joins, array $conditions 
 /**
  * Helper (internal): WHERE for a list = exact conditions AND (search in any column).
  * Example: school_year_id = 3 AND (fname LIKE '%ann%' OR lname LIKE '%ann%')
+ * The search part is case-insensitive on both SQLite and Postgres (see buildSearchClause()).
  */
 function buildListWhere(array $conditions, array $searchCols, string $keyword): array
 {
     [$where, $params] = buildWhereClause($conditions);
 
     if ($keyword !== '' && $searchCols) {
-        $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $keyword);
-        $parts = [];
-        foreach (array_values($searchCols) as $i => $col) {
-            $parts[] = safeIdentifier($col) . " LIKE :kw$i ESCAPE '!'";
-            $params[":kw$i"] = '%' . $escaped . '%';
-        }
-        $where .= ($where === '' ? ' WHERE ' : ' AND ') . '(' . implode(' OR ', $parts) . ')';
+        [$search, $searchParams] = buildSearchClause($searchCols, $keyword);
+        $where .= ($where === '' ? ' WHERE ' : ' AND ') . $search;
+        $params = array_merge($params, $searchParams);
     }
 
     return [$where, $params];
@@ -621,6 +721,8 @@ function buildListWhere(array $conditions, array $searchCols, string $keyword): 
  * @param array    $extra      Computed columns as [alias => subquery SQL]. Each subquery
  *                             should return one value per row of $table and may refer to
  *                             the main table by name (e.g. users.id). Pass [] for none.
+ *                             Use sqlGroupConcat() for "a, b, c" style values so the
+ *                             subquery runs on both SQLite and Postgres.
  *                             WARNING: this is raw SQL. Write it in your code and never
  *                             build it from $_GET, $_POST or any other user input.
  *
@@ -643,7 +745,7 @@ function buildListWhere(array $conditions, array $searchCols, string $keyword): 
  * $offset     = ($page - 1) * $perPage;
  *
  * $extra = [
- *     'roles' => "SELECT GROUP_CONCAT(r.role, ', ')
+ *     'roles' => "SELECT " . sqlGroupConcat($pdo, 'r.role') . "
  *                 FROM user_roles ur
  *                 JOIN roles r ON r.role_id = ur.role
  *                 WHERE ur.user_id = users.id"
@@ -703,7 +805,7 @@ function buildFkJoins(string $table, array $fks): array
 
         $select[]  = safeIdentifier($join) . '.' . safeIdentifier($refCol) . ' AS ' . safeIdentifier($label);
         $joins    .= ' LEFT JOIN ' . safeIdentifier($refTable) . ' AS ' . safeIdentifier($join)
-                   . ' ON ' . safeIdentifier($join) . '.id = '
+                   . ' ON ' . safeIdentifier($join) . '.' . safeIdentifier('id') . ' = '
                    . safeIdentifier($table) . '.' . safeIdentifier($fkCol);
         $aliases[] = $label;
     }

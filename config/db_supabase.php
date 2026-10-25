@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . 'bootstrap.php';
+require_once __DIR__ . "/bootstrap.php";
 
 $host = $_ENV['SUPABASE_HOST'];
 $db   = $_ENV['SUPABASE_DB'];
