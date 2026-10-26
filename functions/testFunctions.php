@@ -26,14 +26,16 @@ function IsTeacher(PDO $pdo, int $userId): bool
 /** The subjects (id, subject_name) a teacher teaches in one school year. */
 function TeacherSubjects(PDO $pdo, int $teacherId, int $yearId): array
 {
+    // is_active is passed as a parameter (not typed as "= 1") so it works whether
+    // the Postgres column is boolean or integer.
     $stmt = $pdo->prepare("SELECT s.id, s.subject_name
                            FROM teacher_subjects ts
                            JOIN subjects s ON s.id = ts.subject_id
                            WHERE ts.teacher_id = :teacher
                              AND s.school_year_id = :year
-                             AND s.is_active = 1
+                             AND s.is_active = :active
                            ORDER BY s.subject_name");
-    $stmt->execute([':teacher' => $teacherId, ':year' => $yearId]);
+    $stmt->execute(normalizeParams([':teacher' => $teacherId, ':year' => $yearId, ':active' => 1]));
     return $stmt->fetchAll();
 }
 
@@ -133,11 +135,12 @@ function SaveQuestion(PDO $pdo, int $testId, ?int $questionId, string $text, int
         }
 
         foreach ($choices as $i => $choice) {
+            // 4th argument null = we don't need the new choice id back
             InsertRecord($pdo, 'choices', [
                 'question_id' => $questionId,
                 'choice_text' => $choice,
                 'is_correct'  => $i === $correct ? 1 : 0,
-            ]);
+            ], null);
         }
         $pdo->commit();
     } catch (Throwable $e) {

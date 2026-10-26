@@ -7,7 +7,11 @@ $db   = $_ENV['SUPABASE_DB'];
 $user = $_ENV['SUPABASE_USER'];
 $pass = $_ENV['SUPABASE_PASS'];
 $port = $_ENV['SUPABASE_PORT'];
-
+var_dump($host);
+var_dump($port);
+var_dump($db);
+var_dump($user);
+exit;
 $dsn = "pgsql:host=$host;port=$port;dbname=$db";
 
 try {

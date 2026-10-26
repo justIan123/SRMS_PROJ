@@ -41,7 +41,7 @@ $page       = min(max(1, (int)($_GET['PageNum'] ?? 1)), $totalPages);
 
 // Teachers of each subject, shown as one text value ("Ann Cruz, Ben Lee")
 $extra = [
-    'teachers' => "SELECT GROUP_CONCAT(u.fname || ' ' || u.lname, ', ')
+    'teachers' => "SELECT string_agg(u.fname || ' ' || u.lname, ', ')
                    FROM teacher_subjects ts
                    JOIN users u ON u.id = ts.teacher_id
                    WHERE ts.subject_id = subjects.id"
@@ -70,12 +70,13 @@ if ($assignId) {
 
 if ($assignId) {
     // all active users that have the "teacher" role
-    $stmt = $pdo->query("SELECT u.id, u.fname, u.lname
+    $stmt = $pdo->prepare("SELECT u.id, u.fname, u.lname
                          FROM users u
                          JOIN user_roles ur ON ur.user_id = u.id
                          JOIN roles r ON r.role_id = ur.role
-                         WHERE ur.role = 3 AND u.is_active = 1
+                         WHERE ur.role = 3 AND u.is_active = :active
                          ORDER BY u.lname, u.fname");
+    $stmt->execute(normalizeParams([':active' => 1]));
     $teachers = $stmt->fetchAll();
 
     // teachers already assigned to this subject

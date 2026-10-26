@@ -77,7 +77,7 @@ if ($assignId) {
 
     // the children of each guardian, shown as one text value
     $gExtra = [
-        'children' => "SELECT GROUP_CONCAT(s.fname || ' ' || s.lname, ', ')
+        'children' => "SELECT string_agg(s.fname || ' ' || s.lname, ', ')
                        FROM students s
                        WHERE s.guardian_id = guardians.id"
     ];

@@ -35,7 +35,7 @@ $totalPages = max(1, ceil($total / $perPage));
 $page       = min(max(1, (int)($_GET['PageNum'] ?? 1)), $totalPages);
 
 $extra = [
-    'roles' => "SELECT GROUP_CONCAT(r.role, ', ')
+    'roles' => "SELECT string_agg(r.role, ', ')
                 FROM user_roles ur
                 JOIN roles r ON r.role_id = ur.role
                 WHERE ur.user_id = users.id"

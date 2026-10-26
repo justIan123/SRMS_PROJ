@@ -44,7 +44,7 @@ $noStudent = (int)$stmt->fetchColumn();
 
 // newest 5 users (with their role) and newest 5 guardians
 $newUsers = ListRecords($pdo, 'users', [], [], '', 5, 0, 'id', 'DESC', [
-    'roles' => "SELECT GROUP_CONCAT(r.role, ', ')
+    'roles' => "SELECT string_agg(r.role, ', ')
                 FROM user_roles ur
                 JOIN roles r ON r.role_id = ur.role
                 WHERE ur.user_id = users.id"

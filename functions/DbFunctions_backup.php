@@ -1,78 +1,176 @@
 <?php
 
+/**
+ * DbFunctions.php - Supabase (PostgreSQL) version.
+ *
+ * Same function names and arguments as the SQLite version, so the rest of the
+ * site keeps working. What changed for Postgres:
+ *
+ *  - Identifiers are quoted with "double quotes" (SQLite/MySQL used backticks).
+ *  - InsertRecord() uses RETURNING, because PDO::lastInsertId() needs a
+ *    sequence name in Postgres.
+ *  - LIKE became ILIKE (Postgres LIKE is case-sensitive). Columns are CAST to
+ *    text first, so searching a number column doesn't throw an error.
+ *  - PHP booleans are sent as 1/0 (PDO sends false as '' which Postgres rejects).
+ *  - GROUP_CONCAT became string_agg() (see the ListRecords() example).
+ *  - getConnection() now connects to Supabase using environment variables.
+ *  - FindWhere() got optional $orderBy / $direction. Postgres does not
+ *    guarantee row order without ORDER BY, unlike SQLite which usually
+ *    returned rows in insert order.
+ *  - CountList() added (ListRecords() docs referenced it).
+ *
+ * Tip: use lowercase table/column names (users, first_name). Postgres folds
+ * unquoted names to lowercase, and these helpers always quote names.
+ */
+
+/* ======================================================================
+ * CONNECTION
+ * ====================================================================== */
 
 /**
- * @param string $name - Name of the database table to search.
+ * Returns one shared PDO connection to your Supabase Postgres database.
+ * (Replace your old SQLite getConnection() with this one.)
+ *
+ * Set these environment variables on your host (Dashboard > Connect):
+ *   SUPABASE_DB_HOST      e.g. aws-0-ap-southeast-1.pooler.supabase.com
+ *   SUPABASE_DB_PORT      5432 (session pooler, recommended) or 6543 (transaction pooler)
+ *   SUPABASE_DB_NAME      postgres
+ *   SUPABASE_DB_USER      pooler users look like: postgres.<your-project-ref>
+ *   SUPABASE_DB_PASSWORD  your database password. Keep it out of git.
+ *
+ * Needs the pdo_pgsql PHP extension on the server.
+ *
+ * ATTR_EMULATE_PREPARES is on so it also works on the transaction pooler
+ * (port 6543), which does not support server-side prepared statements.
+ */
+function getConnection(): PDO
+{
+    static $pdo = null;
+    if ($pdo !== null) {
+        return $pdo;
+    }
+
+    $host = getenv('SUPABASE_DB_HOST');
+    $user = getenv('SUPABASE_DB_USER');
+    $pass = getenv('SUPABASE_DB_PASSWORD');
+    $port = getenv('SUPABASE_DB_PORT') ?: '5432';
+    $name = getenv('SUPABASE_DB_NAME') ?: 'postgres';
+
+    if (!$host || !$user || $pass === false) {
+        throw new RuntimeException('Missing SUPABASE_DB_HOST / SUPABASE_DB_USER / SUPABASE_DB_PASSWORD.');
+    }
+
+    $dsn = "pgsql:host=$host;port=$port;dbname=$name;sslmode=require";
+
+    $pdo = new PDO($dsn, $user, $pass, [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES   => true,
+    ]);
+
+    return $pdo;
+}
+
+/**
+ * @param string $name - Name of the database table/column.
  * Helper: table/column names can't be bound as parameters, so we
- * validate them to prevent SQL injection.
- * 
+ * validate them to prevent SQL injection. Postgres quotes with "double quotes".
  */
 function safeIdentifier(string $name): string
 {
     if (!preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $name)) {
         throw new InvalidArgumentException("Invalid identifier: $name");
     }
-    return "`$name`";
+    return '"' . $name . '"';
 }
- 
+
 /**
- * @param PDO $pdo - Name of the database table to search.
+ * @param array $params - PDO parameters (placeholder => value).
+ * @return array - Same params, with PHP booleans turned into '1' / '0'.
+ * Helper: PDO sends PHP false as an empty string, which Postgres rejects for
+ * boolean columns. '1' and '0' are accepted by boolean AND integer columns.
+ */
+function normalizeParams(array $params): array
+{
+    foreach ($params as $key => $value) {
+        if (is_bool($value)) {
+            $params[$key] = $value ? '1' : '0';
+        }
+    }
+    return $params;
+}
+
+/**
+ * @param PDO $pdo - The database connection from getConnection().
  * @param string $table - Name of the table to able to get the id.
- * @param int $id - id number you want to get.
+ * @param int|string $id - id you want to get (number or uuid).
  * @param string $idColumn - Name of the column of the id you want to get.
- * Helper: table/column names can't be bound as parameters, so we
- * validate them to prevent SQL injection.
- * 
  */
 function FindById(PDO $pdo, string $table, $id, string $idColumn = 'id'): ?array
 {
     $sql  = "SELECT * FROM " . safeIdentifier($table) .
             " WHERE " . safeIdentifier($idColumn) . " = :id LIMIT 1";
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([':id' => $id]);
- 
+    $stmt->execute(normalizeParams([':id' => $id]));
+
     $row = $stmt->fetch();
     return $row ?: null;
 }
- 
+
 /**
- * @param PDO $pdo - Name of the database table to search.
+ * @param PDO $pdo - The database connection from getConnection().
  * @param string $table - Name of the table you want to insert data.
  * @param array $data - associative array.
+ * @param string|null $idColumn - Column to return after the insert. Default is 'id'.
+ *                                Pass null for tables without an id column
+ *                                (e.g. a pivot table). Then '' is returned.
+ * @return string - The new id (works for numbers and uuids).
  * Helper: insert associative array data like this <br>
- * // INSERT: returns the new auto-increment ID <br>
+ * // INSERT: returns the new ID <br>
  * $id = InsertRecord($pdo, 'users', [ <br>
  * 'name'  => 'Juan Dela Cruz', <br>
  * 'email' => 'juan@example.com', <br>
- * ])
+ * ]) <br>
+ * <br>
+ * // Pivot table with no id column <br>
+ * InsertRecord($pdo, 'user_roles', ['user_id' => 1, 'role' => 2], null);
  */
-function InsertRecord(PDO $pdo, string $table, array $data): string
+function InsertRecord(PDO $pdo, string $table, array $data, ?string $idColumn = 'id'): string
 {
     if (empty($data)) {
         throw new InvalidArgumentException('No data provided for insert.');
     }
- 
-    $columns      = array_map('safeIdentifier', array_keys($data));
-    $placeholders = array_map(fn($col) => ':' . $col, array_keys($data));
- 
+
+    $columns      = [];
+    $placeholders = [];
+    $params       = [];
+    foreach ($data as $column => $value) {
+        $columns[]              = safeIdentifier($column);
+        $placeholders[]         = ':' . $column;
+        $params[':' . $column]  = $value;
+    }
+
     $sql = "INSERT INTO " . safeIdentifier($table) .
            " (" . implode(', ', $columns) . ")" .
            " VALUES (" . implode(', ', $placeholders) . ")";
- 
+
+    if ($idColumn !== null) {
+        $sql .= " RETURNING " . safeIdentifier($idColumn);
+    }
+
     $stmt = $pdo->prepare($sql);
-    $stmt->execute($data);
- 
-    return $pdo->lastInsertId();
+    $stmt->execute(normalizeParams($params));
+
+    return $idColumn !== null ? (string) $stmt->fetchColumn() : '';
 }
- 
+
 /**
- * @param PDO $pdo - Name of the database table to search.
+ * @param PDO $pdo - The database connection from getConnection().
  * @param string $table - Name of the table you want to update data.
- * @param int $id - Name of the id you want to update data.
+ * @param int|string $id - The id of the row you want to update.
  * @param array $data - associative array.
- * @param string $idColumn - Name of the column of the id you want to update.
- * @param string $idColumn Name of the primary key or identifier column. Defaults to 'id'.
- * 
+ * @param string $idColumn - Name of the primary key or identifier column. Defaults to 'id'.
+ *
  * @return int Number of rows affected by the update operation.
  * @throws InvalidArgumentException If the provided data array is empty.
  * @throws PDOException If the query execution fails.
@@ -85,30 +183,30 @@ function UpdateRecord(PDO $pdo, string $table, $id, array $data, string $idColum
     if (empty($data)) {
         throw new InvalidArgumentException('No data provided for update.');
     }
- 
+
     $sets   = [];
     $params = [];
     foreach ($data as $column => $value) {
-        $sets[]                 = safeIdentifier($column) . " = :set_" . $column;
+        $sets[]                    = safeIdentifier($column) . " = :set_" . $column;
         $params[':set_' . $column] = $value;
     }
     $params[':id'] = $id;
- 
+
     $sql = "UPDATE " . safeIdentifier($table) .
            " SET " . implode(', ', $sets) .
            " WHERE " . safeIdentifier($idColumn) . " = :id";
- 
+
     $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
- 
+    $stmt->execute(normalizeParams($params));
+
     return $stmt->rowCount();
 }
- 
+
 /**
- * @param PDO $pdo - Name of the database table to search.
+ * @param PDO $pdo - The database connection from getConnection().
  * @param string $table - Name of the table you want to delete data.
- * @param int $id - Name of the id you want to delte data.
- * @param string $idColumn - Name of the column of the id you want to delte.
+ * @param int|string $id - The id of the row you want to delete.
+ * @param string $idColumn - Name of the column of the id you want to delete.
  * Helper: use the func  like this <br>
  * // DELETE: returns the number of rows deleted<br>
  * DeleteRecord($pdo, 'users', $id);
@@ -118,11 +216,11 @@ function DeleteRecord(PDO $pdo, string $table, $id, string $idColumn = 'id'): in
     $sql  = "DELETE FROM " . safeIdentifier($table) .
             " WHERE " . safeIdentifier($idColumn) . " = :id";
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([':id' => $id]);
- 
+    $stmt->execute(normalizeParams([':id' => $id]));
+
     return $stmt->rowCount();
 }
- 
+
 
 /**
  * @param PDO $pdo - The database connection from getConnection().
@@ -149,12 +247,12 @@ function FindAll(
     if (!in_array($direction, ['ASC', 'DESC'], true)) {
         throw new InvalidArgumentException("Direction must be ASC or DESC.");
     }
- 
-    // (int) casts make it safe to place limit/offset directly in the SQL.
+
+    // (int) typed args + max() make it safe to place limit/offset directly in the SQL.
     $sql = "SELECT * FROM " . safeIdentifier($table) .
            " ORDER BY " . safeIdentifier($orderBy) . " $direction" .
            " LIMIT " . max(0, $limit) . " OFFSET " . max(0, $offset);
- 
+
     return $pdo->query($sql)->fetchAll();
 }
 
@@ -162,7 +260,7 @@ function FindAll(
  * @param array $conditions - associative array of column => value. A null value becomes "IS NULL".
  * @return array - [ $whereSql, $params ]. $whereSql is an empty string when there are no conditions.
  * Helper: builds a "WHERE a = :a AND b = :b" clause. Used internally by FindWhere() and CountRecords().
- * 
+ *
  * idk this is use for find where
  */
 function buildWhereClause(array $conditions): array
@@ -170,23 +268,23 @@ function buildWhereClause(array $conditions): array
     if (empty($conditions)) {
         return ['', []];
     }
- 
+
     $parts  = [];
     $params = [];
- 
+
     foreach ($conditions as $column => $value) {
         $quoted = safeIdentifier($column);
- 
+
         if ($value === null) {
             $parts[] = "$quoted IS NULL";
             continue;
         }
- 
+
         $placeholder          = ':w_' . $column;
         $parts[]              = "$quoted = $placeholder";
         $params[$placeholder] = $value;
     }
- 
+
     return [' WHERE ' . implode(' AND ', $parts), $params];
 }
 
@@ -196,6 +294,10 @@ function buildWhereClause(array $conditions): array
  * @param array $conditions - associative array of column => value. All conditions must match (AND). Use null to match NULL.
  * @param int|null $limit - Max number of rows to return. Default is null (no limit).
  * @param int $offset - Number of rows to skip (only used when $limit is set). Default is 0.
+ * @param string|null $orderBy - Column to sort by. Default is null (no ORDER BY).
+ *                               Set this whenever you use $limit, because Postgres
+ *                               does not guarantee row order without it.
+ * @param string $direction - 'ASC' or 'DESC'. Default is 'ASC'.
  * @return array - A list of matching rows. Empty array if none match.
  * Helper: find rows by any column like this <br>
  * // FIND WHERE: login lookup by email <br>
@@ -203,25 +305,43 @@ function buildWhereClause(array $conditions): array
  * $user = $rows[0] ?? null; <br>
  * <br>
  * // Multiple conditions (AND) <br>
- * $admins = FindWhere($pdo, 'users', ['role' => 'admin', 'active' => 1]);
+ * $admins = FindWhere($pdo, 'users', ['role' => 'admin', 'active' => 1]); <br>
+ * <br>
+ * // Paged and sorted <br>
+ * $page1 = FindWhere($pdo, 'users', ['active' => 1], 10, 0, 'id', 'DESC');
  */
-function FindWhere(PDO $pdo, string $table, array $conditions, ?int $limit = null, int $offset = 0): array
-{
+function FindWhere(
+    PDO $pdo,
+    string $table,
+    array $conditions,
+    ?int $limit = null,
+    int $offset = 0,
+    ?string $orderBy = null,
+    string $direction = 'ASC'
+): array {
     [$where, $params] = buildWhereClause($conditions);
- 
+
     $sql = "SELECT * FROM " . safeIdentifier($table) . $where;
- 
+
+    if ($orderBy !== null) {
+        $direction = strtoupper($direction);
+        if (!in_array($direction, ['ASC', 'DESC'], true)) {
+            throw new InvalidArgumentException("Direction must be ASC or DESC.");
+        }
+        $sql .= " ORDER BY " . safeIdentifier($orderBy) . " $direction";
+    }
+
     if ($limit !== null) {
         $sql .= " LIMIT " . max(0, $limit) . " OFFSET " . max(0, $offset);
     }
- 
+
     $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
- 
+    $stmt->execute(normalizeParams($params));
+
     return $stmt->fetchAll();
 }
 
- 
+
 /**
  * @param PDO $pdo - The database connection from getConnection().
  * @param string $table - Name of the table you want to count rows in.
@@ -240,11 +360,11 @@ function FindWhere(PDO $pdo, string $table, array $conditions, ?int $limit = nul
 function CountRecords(PDO $pdo, string $table, array $conditions = []): int
 {
     [$where, $params] = buildWhereClause($conditions);
- 
+
     $sql  = "SELECT COUNT(*) FROM " . safeIdentifier($table) . $where;
     $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
- 
+    $stmt->execute(normalizeParams($params));
+
     return (int) $stmt->fetchColumn();
 }
 
@@ -268,8 +388,8 @@ function RecordExists(PDO $pdo, string $table, string $column, $value): bool
     $sql  = "SELECT 1 FROM " . safeIdentifier($table) .
             " WHERE " . safeIdentifier($column) . " = :value LIMIT 1";
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([':value' => $value]);
- 
+    $stmt->execute(normalizeParams([':value' => $value]));
+
     return (bool) $stmt->fetchColumn();
 }
 
@@ -278,7 +398,7 @@ function RecordExists(PDO $pdo, string $table, string $column, $value): bool
  * @param PDO $pdo - The database connection from getConnection().
  * @param string $table - Name of the table you want to search.
  * @param array $columns - List of column names to search in, e.g. ['name', 'email']. A row matches if ANY column contains the keyword.
- * @param string $keyword - The text to look for (matches anywhere inside the value, case-insensitive in most MySQL setups).
+ * @param string $keyword - The text to look for (matches anywhere inside the value, case-insensitive).
  * @param int $limit - Max number of rows to return. Default is 50.
  * @param int $offset - Number of rows to skip. Default is 0.
  * @param string $orderBy - Column to sort by. Default is 'id'.
@@ -305,35 +425,35 @@ function SearchRecords(
     if (!in_array($direction, ['ASC', 'DESC'], true)) {
         throw new InvalidArgumentException("Direction must be ASC or DESC.");
     }
- 
+
     if (empty($columns)) {
         throw new InvalidArgumentException('Provide at least one column to search.');
     }
- 
+
     // Escape %, _ and the escape character itself so the text is matched literally.
-    // '!' is used as the escape character because it works in both MySQL and SQLite.
     $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $keyword);
- 
+
+    // ILIKE = case-insensitive LIKE (Postgres only). CAST lets you search number columns too.
     $conditions = [];
     $params     = [];
     foreach (array_values($columns) as $i => $column) {
         $placeholder          = ':kw' . $i;   // one placeholder per column
-        $conditions[]         = safeIdentifier($column) . " LIKE $placeholder ESCAPE '!'";
+        $conditions[]         = "CAST(" . safeIdentifier($column) . " AS TEXT) ILIKE $placeholder ESCAPE '!'";
         $params[$placeholder] = '%' . $escaped . '%';
     }
- 
+
     $sql = "SELECT * FROM " . safeIdentifier($table) .
            " WHERE (" . implode(' OR ', $conditions) . ")" .
            " ORDER BY " . safeIdentifier($orderBy) . " $direction" .
            " LIMIT " . max(0, $limit) . " OFFSET " . max(0, $offset);
- 
+
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
- 
+
     return $stmt->fetchAll();
 }
- 
- 
+
+
 /**
  * @param PDO $pdo - The database connection from getConnection().
  * @param string $table - Name of the table you want to search.
@@ -350,40 +470,40 @@ function CountSearchRecords(PDO $pdo, string $table, array $columns, string $key
     if (empty($columns)) {
         throw new InvalidArgumentException('Provide at least one column to search.');
     }
- 
+
     $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $keyword);
- 
+
     $conditions = [];
     $params     = [];
     foreach (array_values($columns) as $i => $column) {
         $placeholder          = ':kw' . $i;
-        $conditions[]         = safeIdentifier($column) . " LIKE $placeholder ESCAPE '!'";
+        $conditions[]         = "CAST(" . safeIdentifier($column) . " AS TEXT) ILIKE $placeholder ESCAPE '!'";
         $params[$placeholder] = '%' . $escaped . '%';
     }
- 
+
     $sql = "SELECT COUNT(*) FROM " . safeIdentifier($table) .
            " WHERE (" . implode(' OR ', $conditions) . ")";
- 
+
     $stmt = $pdo->prepare($sql);
     $stmt->execute($params);
- 
+
     return (int) $stmt->fetchColumn();
 }
 
 /* ======================================================================
  * JOIN FUNCTIONS (this is bad practice seryoso )
  * ====================================================================== */
- 
+
 /**
  * @param string $name - Column like "students.id" (table.column) or just "id".
- * @return string - Safely quoted, e.g. `students`.`id`
+ * @return string - Safely quoted, e.g. "students"."id"
  * Helper: same protection as safeIdentifier(), but allows one dot for table.column.
  */
 function safeQualified(string $name): string
 {
     return implode('.', array_map('safeIdentifier', explode('.', $name)));
 }
- 
+
 /**
  * Helper (internal): builds the "FROM ... JOIN ..." part. Used by FindWithJoin() and CountWithJoin().
  * @param array $joins - [[TYPE, joinTable, leftColumn, rightColumn], ...] TYPE = INNER, LEFT or RIGHT.
@@ -391,25 +511,25 @@ function safeQualified(string $name): string
 function buildJoinFrom(string $table, array $joins): string
 {
     $sql = " FROM " . safeIdentifier($table);
- 
+
     foreach ($joins as $join) {
         if (count($join) !== 4) {
             throw new InvalidArgumentException('Each join must be [TYPE, table, leftColumn, rightColumn].');
         }
         [$type, $joinTable, $left, $right] = $join;
- 
+
         $type = strtoupper($type);
         if (!in_array($type, ['INNER', 'LEFT', 'RIGHT'], true)) {
             throw new InvalidArgumentException("Invalid join type: $type");
         }
- 
+
         $sql .= " $type JOIN " . safeIdentifier($joinTable) .
                 " ON " . safeQualified($left) . " = " . safeQualified($right);
     }
- 
+
     return $sql;
 }
- 
+
 /**
  * Helper (internal): like buildWhereClause() but accepts "table.column" keys.
  * Placeholders are numbered (:jw0, :jw1...) because a dot can't be part of a placeholder name.
@@ -420,27 +540,27 @@ function buildJoinWhere(array $conditions): array
     if (empty($conditions)) {
         return ['', []];
     }
- 
+
     $parts  = [];
     $params = [];
     $i      = 0;
- 
+
     foreach ($conditions as $column => $value) {
         $quoted = safeQualified($column);
- 
+
         if ($value === null) {
             $parts[] = "$quoted IS NULL";
             continue;
         }
- 
+
         $placeholder          = ':jw' . $i++;
         $parts[]              = "$quoted = $placeholder";
         $params[$placeholder] = $value;
     }
- 
+
     return [' WHERE ' . implode(' AND ', $parts), $params];
 }
- 
+
 /**
  * @param PDO $pdo - The database connection from getConnection().
  * @param string $table - Main table (the one after FROM), e.g. 'students'.
@@ -478,7 +598,7 @@ function FindWithJoin(
     if (empty($select)) {
         throw new InvalidArgumentException('Provide at least one column to select.');
     }
- 
+
     // SELECT list: "*", "table.*", "col", "table.col" or any of those with "AS alias"
     $cols = [];
     foreach ($select as $col) {
@@ -492,11 +612,11 @@ function FindWithJoin(
             throw new InvalidArgumentException("Invalid select column: $col");
         }
     }
- 
+
     [$where, $params] = buildJoinWhere($conditions);
- 
+
     $sql = "SELECT " . implode(', ', $cols) . buildJoinFrom($table, $joins) . $where;
- 
+
     if ($orderBy !== null) {
         $direction = strtoupper($direction);
         if (!in_array($direction, ['ASC', 'DESC'], true)) {
@@ -504,17 +624,17 @@ function FindWithJoin(
         }
         $sql .= " ORDER BY " . safeQualified($orderBy) . " $direction";
     }
- 
+
     if ($limit !== null) {
         $sql .= " LIMIT " . max(0, $limit) . " OFFSET " . max(0, $offset);
     }
- 
+
     $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
- 
+    $stmt->execute(normalizeParams($params));
+
     return $stmt->fetchAll();
 }
- 
+
 /**
  * @param array $left - The main list of rows (each row is an associative array), e.g. the result of fetching all students.
  * @param array $right - The list of rows to attach to the left rows, e.g. the guardians.
@@ -569,17 +689,17 @@ function joinRecords(array $left, array $right, array $on, string $type = 'LEFT'
 function CountWithJoin(PDO $pdo, string $table, array $joins, array $conditions = []): int
 {
     [$where, $params] = buildJoinWhere($conditions);
- 
+
     $sql  = "SELECT COUNT(*)" . buildJoinFrom($table, $joins) . $where;
     $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
- 
+    $stmt->execute(normalizeParams($params));
+
     return (int) $stmt->fetchColumn();
 }
 
 /**
  * Helper (internal): WHERE for a list = exact conditions AND (search in any column).
- * Example: school_year_id = 3 AND (fname LIKE '%ann%' OR lname LIKE '%ann%')
+ * Example: school_year_id = 3 AND (fname ILIKE '%ann%' OR lname ILIKE '%ann%')
  */
 function buildListWhere(array $conditions, array $searchCols, string $keyword): array
 {
@@ -589,7 +709,7 @@ function buildListWhere(array $conditions, array $searchCols, string $keyword): 
         $escaped = str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $keyword);
         $parts = [];
         foreach (array_values($searchCols) as $i => $col) {
-            $parts[] = safeIdentifier($col) . " LIKE :kw$i ESCAPE '!'";
+            $parts[] = "CAST(" . safeIdentifier($col) . " AS TEXT) ILIKE :kw$i ESCAPE '!'";
             $params[":kw$i"] = '%' . $escaped . '%';
         }
         $where .= ($where === '' ? ' WHERE ' : ' AND ') . '(' . implode(' OR ', $parts) . ')';
@@ -642,8 +762,9 @@ function buildListWhere(array $conditions, array $searchCols, string $keyword): 
  * $page       = max(1, (int) ($_GET['PageNum'] ?? 1));
  * $offset     = ($page - 1) * $perPage;
  *
+ * // Postgres: string_agg() replaces SQLite's GROUP_CONCAT()
  * $extra = [
- *     'roles' => "SELECT GROUP_CONCAT(r.role, ', ')
+ *     'roles' => "SELECT string_agg(r.role, ', ' ORDER BY r.role)
  *                 FROM user_roles ur
  *                 JOIN roles r ON r.role_id = ur.role
  *                 WHERE ur.user_id = users.id"
@@ -679,9 +800,27 @@ function ListRecords(PDO $pdo, string $table, array $conditions, array $searchCo
            " LIMIT " . max(0, $limit) . " OFFSET " . max(0, $offset);
 
     $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
+    $stmt->execute(normalizeParams($params));
     return $stmt->fetchAll();
 }
+
+/**
+ * Count the rows ListRecords() would find in total (ignoring limit/offset).
+ * Pass the same $conditions, $searchCols and $keyword you pass to ListRecords().
+ *
+ * @return int Total matching rows, used to work out the number of pages.
+ */
+function CountList(PDO $pdo, string $table, array $conditions, array $searchCols, string $keyword): int
+{
+    [$where, $params] = buildListWhere($conditions, $searchCols, $keyword);
+
+    $sql  = "SELECT COUNT(*) FROM " . safeIdentifier($table) . $where;
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute(normalizeParams($params));
+
+    return (int) $stmt->fetchColumn();
+}
+
 /**
  * Turn foreign keys into SELECT columns + LEFT JOINs.
  * $fks = ['role_id' => 'roles.name']  means: users.role_id -> roles.id, show roles.name

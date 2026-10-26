@@ -24,7 +24,7 @@ if (empty($_SESSION['csrf'])) {
 // Load the current user. The password column is never selected.
 $stmt = $pdo->prepare(
     "SELECT u.id, u.username, u.email, u.fname, u.lname, u.phone, u.is_active,
-            (SELECT GROUP_CONCAT(r.role, ', ')
+            (SELECT string_agg(r.role, ', ')
              FROM user_roles ur
              JOIN roles r ON r.role_id = ur.role
              WHERE ur.user_id = u.id) AS roles
