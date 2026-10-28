@@ -1,6 +1,8 @@
 <?php
 require_once("../public/initialize.php");
 require_once(DB_PATH);
+require_once(FUNCTIONS_PATH . DS . "setErrorFunctions.php");
+require_once(DEBUG_PATH . "debugFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "schoolFunctions.php");
 
@@ -22,6 +24,9 @@ try {
     // is there already an admin?
     $stmt = $pdo->query("SELECT 1 FROM user_roles WHERE role = 1 LIMIT 1");
     $isAdminExist = (bool)$stmt->fetchColumn();
+
+    // the roles that can be given (admin is not offered), for the Role dropdowns
+    $roleOptions = $pdo->query("SELECT role_id, role FROM roles WHERE LOWER(role) <> 'admin' ORDER BY role_id")->fetchAll();
 
     // Everything belongs to the current school year
     $year = CurrentSchoolYear($pdo);
@@ -61,7 +66,7 @@ try {
     $stmt->execute($params);
     $rows = $stmt->fetchAll();
 } catch (PDOException $e) {
-    // err_log($e->getMessage());
+    err_log($e->getMessage());
     echo alertBox('danger', 'Could not load the users. Please try again.');
     return;
 }
@@ -79,13 +84,12 @@ $state = [
 
 <div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner">
 
-    <h3>Teachers <small class="text-muted fs-6"><?= htmlspecialchars($year['name']) ?></small></h3>
+    <h3>Users <small class="text-muted fs-6"><?= htmlspecialchars($year['name']) ?></small></h3>
     <div id="message"><?= $message ?? '' ?></div>
 
     <!-- CREATE -->
     <form hx-post="<?= HANDLERS_URL . 'userProcess.php' ?>" class="mb-4 gap-2">
         <input type="hidden" name="action" value="create">
-        <input type="hidden" name="school_year_id" value="<?= (int)$year['id'] ?>">
         <div class="row mb-2">
             <div class="col">
                 <input name="fname" placeholder="First name" class="form-control" required>
@@ -111,9 +115,10 @@ $state = [
         <div class="row mb-2">
 
             <div class="col d-flex justify-content-start">
-                <select class="form-select" name="createAssignedRole">
-                    <option value="2">Teacher</option>
-                    <option value="3">Employee</option>
+                <select name="assignRole" class="form-select" required>
+                    <?php foreach ($roleOptions as $opt): ?>
+                        <option value="<?= $opt['role_id'] ?>"><?= htmlspecialchars(ucfirst($opt['role'])) ?></option>
+                    <?php endforeach; ?>
                 </select>
                 <button class="btn btn-primary">Create</button>
             </div>
@@ -200,16 +205,10 @@ $state = [
                     <!-- <td><input class="form-control form-control-sm" form="editForm" name="email" value="<?= htmlspecialchars($r['roles'] ?? '') ?>"></td> -->
                     <td>
                         <select class="form-select" form="editForm" name="assignRole">
-                            <?php if($r['roles'] == "admin"): ?>
-                                <option value="3">Teacher</option>
-                                <option value="2">Employee</option>
-                            <?php elseif($r['roles'] == "teacher"): ?>
-                                <option value="3">Teacher</option>
-                                <option value="2">Employee</option>
-                            <?php else: ?>
-                                <option value="2">Employee</option>
-                                <option value="3">Teacher</option>
-                            <?php endif; ?>
+                            <option value="">--</option>
+                            <?php foreach ($roleOptions as $opt): ?>
+                                <option value="<?= $opt['role_id'] ?>" <?= $opt['role'] === $r['roles'] ? 'selected' : '' ?>><?= htmlspecialchars(ucfirst($opt['role'])) ?></option>
+                            <?php endforeach; ?>
                         </select>
                     </td>
                     <td>
@@ -239,9 +238,9 @@ $state = [
                             Edit
                         </a>
                         <button class="btn btn-sm btn-outline-danger"
-                                hx-post="<?= HANDLERS_URL ?>teacherProcess.php"
+                                hx-post="<?= HANDLERS_URL ?>userProcess.php"
                                 hx-vals='<?= htmlspecialchars(json_encode($state + ['action' => 'delete', 'id' => $r['id']]), ENT_QUOTES) ?>'
-                                hx-confirm="Delete this teacher?">Delete</button>
+                                hx-confirm="Delete this user?">Delete</button>
                         <?php endif?>
 
                     </td>

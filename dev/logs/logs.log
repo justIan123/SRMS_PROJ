@@ -1,0 +1,99 @@
+[2026-09-28 18:10:55] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.username
+[2026-09-28 18:11:21] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.username
+[2026-09-28 18:26:09] SQLSTATE[HY000]: General error: 1 table users has no column named usernam
+[2026-09-29 17:31:32] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-09-29 17:32:20] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-09-29 17:32:41] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-09-29 17:43:59] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-09-29 17:45:27] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-09-29 17:47:14] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-09-29 17:47:37] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-09-29 17:47:56] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-09-29 17:49:00] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-09-29 17:49:26] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-09-29 17:49:51] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-09-29 17:50:37] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email 
+[2026-09-30 05:28:23] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 05:28:41] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 05:29:04] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 05:31:15] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-09-30 05:32:58] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 05:33:35] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 05:33:58] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-09-30 05:35:46] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 05:36:24] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 05:37:04] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 05:37:09] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 05:37:09] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 05:37:10] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 05:37:11] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 05:37:11] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 05:37:11] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 05:37:11] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 05:37:11] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 05:37:12] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 05:37:52] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 05:40:53] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 17:04:11] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 17:21:35] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 17:22:04] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 17:23:55] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 17:33:20] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-09-30 17:33:46] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-10-01 02:55:42] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 03:17:22] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 03:18:16] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 03:18:37] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 03:18:44] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 03:18:54] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 03:19:27] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 03:19:59] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 03:20:16] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 03:21:01] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 03:38:16] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 03:38:46] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 03:38:55] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 03:39:01] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 03:42:17] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 03:42:47] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 03:43:32] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 03:44:20] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 03:46:12] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 03:49:53] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 04:18:07] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 04:18:28] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 04:18:56] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: users.email
+[2026-10-01 04:24:13] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-10-01 04:24:48] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-10-06 08:21:06] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-10-06 08:45:40] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-10-06 08:50:13] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-10-06 08:53:49] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-10-06 08:55:26] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-10-06 09:00:17] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-10-06 09:03:31] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-10-06 09:05:20] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-10-06 17:25:35] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-10-06 17:26:04] SQLSTATE[HY000]: General error: 5 database is locked
+[2026-10-08 07:37:12] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: guardian.email
+[2026-10-08 07:39:43] SQLSTATE[23000]: Integrity constraint violation: 19 UNIQUE constraint failed: guardian.email
+[2026-10-28 01:25:12] SQLSTATE[23502]: Not null violation: 7 ERROR:  null value in column "id" of relation "users" violates not-null constraint
+DETAIL:  Failing row contains (null, joanadim3456, joanaDim@gmail.com, $2y$12$3qg9zqG3cC08CsZZb1vVneZ3VKxm48abgnNvW/QIjX/g3f59/49bS, null, null, null, 1).
+[2026-10-28 01:40:02] SQLSTATE[23502]: Not null violation: 7 ERROR:  null value in column "id" of relation "users" violates not-null constraint
+DETAIL:  Failing row contains (null, joanadim3456, joanaDim@gmail.com, $2y$12$/bA0NTWuMp8Vr.Etp0KAkOZNJHiIU7u59WKu4tyoMgQzLvEkojd.W, NONE, NONE, null, 1).
+[2026-10-28 01:41:23] SQLSTATE[23502]: Not null violation: 7 ERROR:  null value in column "id" of relation "users" violates not-null constraint
+DETAIL:  Failing row contains (null, joanadim3456, joanaDim@gmail.com, $2y$12$y977iNQNYTEGksjXOc10OO9ZN.kPclEs6RYL99Aa2w/oZk93suqTW, NONE, NONE, null, 1).
+[2026-10-28 01:43:43] SQLSTATE[23502]: Not null violation: 7 ERROR:  null value in column "id" of relation "users" violates not-null constraint
+DETAIL:  Failing row contains (null, joanadim3456, joanaDim@gmail.com, $2y$12$7Gxk7I7jvJcQXN3EQJh5kOogdguDStUJzUuq0./OijoNlLw6K48XO, NONE, NONE, null, 1).
+[2026-10-28 01:44:33] SQLSTATE[23502]: Not null violation: 7 ERROR:  null value in column "id" of relation "users" violates not-null constraint
+DETAIL:  Failing row contains (null, joanadim3456, joanaDim@gmail.com, $2y$12$xCY8Gt39LcVwqUTNZiEdjOrdy4u5Li7bCK8r2Sx96a0.kwh4otwiy, NONE, NONE, null, 1).
+[2026-10-28 01:44:56] SQLSTATE[23502]: Not null violation: 7 ERROR:  null value in column "id" of relation "users" violates not-null constraint
+DETAIL:  Failing row contains (null, joanadim3456, joanaDim@gmail.com, $2y$12$IZctZIkRngKPM4UrcvIEee4zrkJwZUBBsTumahSEVb7yXdj2XOSoO, NONE, NONE, null, 1).
+[2026-10-28 02:09:02] SQLSTATE[23505]: Unique violation: 7 ERROR:  duplicate key value violates unique constraint "user_roles_pkey"
+DETAIL:  Key (user_role_id)=(1) already exists.
+[2026-10-28 02:21:49] SQLSTATE[23505]: Unique violation: 7 ERROR:  duplicate key value violates unique constraint "user_roles_pkey"
+DETAIL:  Key (user_role_id)=(3) already exists.
+[2026-10-28 02:22:15] SQLSTATE[23505]: Unique violation: 7 ERROR:  duplicate key value violates unique constraint "users_email_key"
+DETAIL:  Key (email)=(joanaDim@gmail.com) already exists.
+[2026-10-28 02:23:51] SQLSTATE[23505]: Unique violation: 7 ERROR:  duplicate key value violates unique constraint "user_roles_pkey"
+DETAIL:  Key (user_role_id)=(4) already exists.

@@ -8,6 +8,7 @@ if (session_status() === PHP_SESSION_NONE) {
 require_once(DB_PATH);
 require_once(FUNCTIONS_PATH . DS . "securityFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "setErrorFunctions.php");
+require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 require_once(DEBUG_PATH . "debugFunctions.php");
 
 $err = '';
@@ -55,7 +56,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $stmt = $pdo->prepare("SELECT role FROM user_roles WHERE user_id = :id");
             $stmt->execute([':id' => $user['id']]);
             $roles = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
-
+            alert(implode(", ", $roles));
             // New session id after login prevents session fixation
             session_regenerate_id(true);
 

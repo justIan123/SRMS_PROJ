@@ -1,6 +1,8 @@
 <?php
 require_once("../public/initialize.php");
 require_once(DB_PATH);
+require_once(FUNCTIONS_PATH . DS . "setErrorFunctions.php");
+require_once(DEBUG_PATH . "debugFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "schoolFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "testFunctions.php");
@@ -76,7 +78,6 @@ $state = ['test' => $testId];
 ?>
 
 <div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner">
-
     <a href="<?= makeUrl($testsUrl, []) ?>" class="btn btn-sm btn-outline-secondary mb-3">&larr; Back to my tests</a>
 
     <h3>
@@ -101,7 +102,7 @@ $state = ['test' => $testId];
     <?php if ($locked): ?>
         <div class="alert alert-info">This test is published. Unpublish it in My Tests to change its questions.</div>
     <?php else: ?>
-        <form hx-post="<?= HANDLERS_URL ?>questionProcess.php" class="card card-body mb-4">
+        <form hx-post="<?= HANDLERS_URL ?>questionsProcess.php" class="card card-body mb-4">
             <h5><?= $isEditing ? 'Edit question' : 'Add a question' ?></h5>
             <input type="hidden" name="action" value="<?= $isEditing ? 'update' : 'create' ?>">
             <input type="hidden" name="test" value="<?= $testId ?>">
@@ -162,7 +163,7 @@ $state = ['test' => $testId];
                 <?php if (!$locked): ?>
                     <a href="<?= makeUrl($self, $state, ['edit' => $q['id']]) ?>" class="btn btn-sm btn-outline-primary">Edit</a>
                     <button class="btn btn-sm btn-outline-danger"
-                            hx-post="<?= HANDLERS_URL ?>questionProcess.php"
+                            hx-post="<?= HANDLERS_URL ?>questionsProcess.php"
                             hx-vals='<?= htmlspecialchars(json_encode(['action' => 'delete', 'test' => $testId, 'id' => $q['id']]), ENT_QUOTES) ?>'
                             hx-confirm="Delete this question?">Delete</button>
                 <?php endif; ?>

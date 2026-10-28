@@ -3,8 +3,8 @@
 // in the current school year. Put this file in FUNCTIONS_PATH.
 //
 // Plain PDO: every function runs its own prepare() / execute().
-// The write functions use a transaction and re-throw after the rollback,
-// so the page or handler that calls them decides what to show.
+// The writes (create / update / delete a test or a question) are no longer here:
+// they live in testProcess.php and questionsProcess.php, inside their transactions.
 
 /**
  * The logged-in user's id, or 0 when nobody is logged in.
@@ -12,6 +12,10 @@
  */
 function CurrentUserId(): int
 {
+    // $_SESSION is empty until the session is started, so start it if nobody did yet
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
     return (int)($_SESSION['user_id'] ?? 0);
 }
 
@@ -55,53 +59,8 @@ function FindMyTest(PDO $pdo, int $testId, int $teacherId, int $yearId): ?array
     return $stmt->fetch() ?: null;
 }
 
-/** Delete a test together with its questions and choices. */
-function DeleteTest(PDO $pdo, int $testId): void
-{
-    try {
-        $pdo->beginTransaction();
-
-        $stmt = $pdo->prepare("DELETE FROM choices WHERE question_id IN (SELECT id FROM questions WHERE test_id = :test)");
-        $stmt->execute([':test' => $testId]);
-
-        $stmt = $pdo->prepare("DELETE FROM questions WHERE test_id = :test");
-        $stmt->execute([':test' => $testId]);
-
-        $stmt = $pdo->prepare("DELETE FROM tests WHERE id = :test");
-        $stmt->execute([':test' => $testId]);
-
-        $pdo->commit();
-    } catch (Throwable $e) {
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
-        throw $e;
-    }
-}
-
-/** Delete one question together with its choices. */
-function DeleteQuestion(PDO $pdo, int $questionId): void
-{
-    try {
-        $pdo->beginTransaction();
-
-        $stmt = $pdo->prepare("DELETE FROM choices WHERE question_id = :question");
-        $stmt->execute([':question' => $questionId]);
-
-        $stmt = $pdo->prepare("DELETE FROM questions WHERE id = :question");
-        $stmt->execute([':question' => $questionId]);
-
-        $pdo->commit();
-    } catch (Throwable $e) {
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
-        throw $e;
-    }
-}
-
 /**
- * Read and check the question form.
+ * Read and check the question form (no database here).
  * Returns [text, points, choices, correct, error]
  *  - choices : only the choices that were filled in
  *  - correct : position of the correct one inside $choices
@@ -136,45 +95,4 @@ function ReadQuestionForm(array $post): array
     }
 
     return [$text, $points, $choices, $correct, $error];
-}
-
-/** Insert a question (or update it when $questionId is given) together with its choices. */
-function SaveQuestion(PDO $pdo, int $testId, ?int $questionId, string $text, int $points, array $choices, int $correct): void
-{
-    try {
-        $pdo->beginTransaction();
-
-        if ($questionId === null) {
-            // Postgres: lastInsertId() needs a sequence name, so the INSERT returns the id itself
-            $stmt = $pdo->prepare("INSERT INTO questions (test_id, question_text, points)
-                                   VALUES (:test, :text, :points)
-                                   RETURNING id");
-            $stmt->execute([':test' => $testId, ':text' => $text, ':points' => $points]);
-            $questionId = (int)$stmt->fetchColumn();
-        } else {
-            $stmt = $pdo->prepare("UPDATE questions SET question_text = :text, points = :points WHERE id = :question");
-            $stmt->execute([':text' => $text, ':points' => $points, ':question' => $questionId]);
-
-            // the choices are re-added below
-            $stmt = $pdo->prepare("DELETE FROM choices WHERE question_id = :question");
-            $stmt->execute([':question' => $questionId]);
-        }
-
-        $stmt = $pdo->prepare("INSERT INTO choices (question_id, choice_text, is_correct)
-                               VALUES (:question, :choice, :correct)");
-        foreach ($choices as $i => $choice) {
-            $stmt->execute([
-                ':question' => $questionId,
-                ':choice'   => $choice,
-                ':correct'  => $i === $correct ? 1 : 0,
-            ]);
-        }
-
-        $pdo->commit();
-    } catch (Throwable $e) {
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
-        }
-        throw $e;
-    }
 }

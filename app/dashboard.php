@@ -1,8 +1,10 @@
 <?php
 require_once("../public/initialize.php");
 
+require_once(DB_PATH);
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 require_once(INCLUDE_PATH . DS . "auth.php");
+
 ?>
 
 
@@ -29,6 +31,24 @@ require_once(INCLUDE_PATH . DS . "auth.php");
       display: flex;
     }
 
+    /* Sidebar collapse styling and animation with zero gaps */
+    #pushSidebar {
+      width: 260px;
+      min-width: 260px;
+      transition: all 0.3s ease-in-out;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+
+    #pushSidebar.collapsed {
+      width: 0 !important;
+      min-width: 0 !important;
+      padding: 0 !important;
+      margin: 0 !important;
+      border: none !important;
+      opacity: 0;
+    }
+
     /* Main wrapper styling */
     #main-wrapper {
       position: relative;
@@ -49,44 +69,44 @@ require_once(INCLUDE_PATH . DS . "auth.php");
 </head>
 <body>
   <!-- HEADER -->
-  <nav class="navbar navbar-expand-lg navbar-light bg-light">
-    <div class="navbar-brand"></div>
-    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-      <span class="navbar-toggler-icon"></span>
-    </button>
+  <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom px-3">
+    <div class="container-fluid">
+      <span class="badge bg-<?= $isUserIsAdmin ? 'success' : 'secondary' ?> me-3">
+        <?= $isUserIsAdmin ? 'Admin' : 'User' ?>
+      </span>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
 
-    <div class="collapse navbar-collapse border-bottom" id="navbarNav">
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-        <li class="nav-item">
-          <a class="nav-link active" aria-current="page" href="#">Home</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="#">Features</a>
-        </li>
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-            Pages
-          </a>
-          <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
-            <li><a class="dropdown-item" href="#">Page 1</a></li>
-            <li><a class="dropdown-item" href="#">Page 2</a></li>
-          </ul>
-        </li>
-      </ul>
-
-      <form class="d-flex">
-        <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search">
-        <button class="btn btn-outline-success" type="submit">Search</button>
-      </form>
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+          <li class="nav-item">
+            <a class="nav-link active" aria-current="page" href="#">Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="#">Features</a>
+          </li>
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              Pages
+            </a>
+            <ul class="dropdown-menu" aria-labelledby="navbarDropdown">
+              <li><a class="dropdown-item" href="#">Page 1</a></li>
+              <li><a class="dropdown-item" href="#">Page 2</a></li>
+            </ul>
+          </li>
+        </ul>
+      </div>
     </div>
   </nav>
 
-  <!-- NAVBAR & SIDEBAR (Using hx-indicator inheritance for cleaner code) -->
+  <!-- NAVBAR & SIDEBAR -->
   <div class="d-flex overflow-hidden" style="min-height: 100vh">
     <nav id="pushSidebar" class="d-flex flex-column flex-shrink-0 bg-body border-end p-3" hx-indicator="#global-spinner, #main">
       <a href="#" class="mb-3 link-body-emphasis text-decoration-none fs-5 fw-semibold"><i class="bi bi-hexagon-half me-2"></i>SRMS</a>
       
       <!-- LINK LISTS -->
+       <?php if($isUserIsAdmin):?>
       <ul class="nav nav-pills flex-column mb-auto">
         <li class="nav-item">
           <div class="nav-link btn text-start active"
@@ -157,14 +177,45 @@ require_once(INCLUDE_PATH . DS . "auth.php");
             <i class="bi bi-person"></i>My Account
           </div>
         </li>
+        <?php endif?>
+
+        <?php if(!$isUserIsAdmin):?>
+        <li class="nav-item">
+          <div class="nav-link btn text-start"
+            hx-get="<?= COMPONENTS_URL . 'manage_questions.php' ?>"
+            hx-target="#main"
+            hx-swap="innerHTML"
+            onclick="setActive(this)">
+            <i class="bi bi-person"></i>My questions
+          </div>
+        </li>
+        <li class="nav-item">
+          <div class="nav-link btn text-start"
+            hx-get="<?= COMPONENTS_URL . 'manage_test.php' ?>"
+            hx-target="#main"
+            hx-swap="innerHTML"
+            onclick="setActive(this)">
+            <i class="bi bi-person"></i>My test
+          </div>
+        </li>
+        <li class="nav-item">
+          <div class="nav-link btn text-start"
+            hx-get="<?= COMPONENTS_URL . 'manage_tests.php' ?>"
+            hx-target="#main"
+            hx-swap="innerHTML"
+            onclick="setActive(this)">
+            <i class="bi bi-person"></i>My tests
+          </div>
+        </li>
+        <?php endif?>
 
         <li class="nav-item"><a class="nav-link" href="#"><i class="bi bi-graph-up me-2"></i>Reports</a></li>
         <li class="nav-item"><a class="nav-link" href="logout_page"><i class="bi bi-door-closed me-2"></i>Logout</a></li>
       </ul>
     </nav>
 
-    <header class="container-fluid" hx-indicator="#global-spinner, #main">
-      <div class="row">
+    <header class="container-fluid flex-grow-1 p-3" hx-indicator="#global-spinner, #main">
+      <div class="row mb-3">
         <div class="col-6 d-flex justify-content-start">
           <button class="btn btn-outline-secondary" onclick="document.getElementById('pushSidebar').classList.toggle('collapsed')" aria-label="Toggle sidebar" aria-expanded="true">
               <i class="bi bi-list"></i>

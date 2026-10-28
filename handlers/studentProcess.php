@@ -1,75 +1,111 @@
 <?php
 require_once("../public/initialize.php");
 require_once(DB_PATH);
-require_once(FUNCTIONS_PATH . DS . "DbFunctions.php");
-require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "schoolFunctions.php");
+require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
+require_once(FUNCTIONS_PATH . DS . "setErrorFunctions.php");
+require_once(DEBUG_PATH . "debugFunctions.php");
 
-$year    = CurrentSchoolYear($pdo);
 $action  = $_POST['action'] ?? '';
 $message = '';
 
-if ($year) {
-    try {
+try {
+    // Everything belongs to the current school year
+    $year = CurrentSchoolYear($pdo);
+
+    if ($year) {
+        $pdo->beginTransaction();
+
+        $id    = (int)($_POST['id'] ?? 0);
+        $fname = trim($_POST['fname'] ?? '');
+        $lname = trim($_POST['lname'] ?? '');
+        $grade = trim($_POST['grade_level'] ?? '') ?: null;
 
         if ($action === 'create') {
-            $fname = trim($_POST['fname'] ?? '');
-            $lname = trim($_POST['lname'] ?? '');
-
             if ($fname === '' || $lname === '') {
                 $message = renderAlert('First name and last name are required', 'danger');
             } else {
                 // no guardian yet, it is assigned later from the table
-                InsertRecord($pdo, 'students', [
-                    'school_year_id' => $year['id'],
-                    'fname'          => $fname,
-                    'lname'          => $lname,
-                    'grade_level'    => trim($_POST['grade_level'] ?? '') ?: null,
+                $stmt = $pdo->prepare("INSERT INTO students (school_year_id, fname, lname, grade_level)
+                                       VALUES (:year, :fname, :lname, :grade)");
+                $stmt->execute([
+                    ':year'  => $year['id'],
+                    ':fname' => $fname,
+                    ':lname' => $lname,
+                    ':grade' => $grade,
                 ]);
                 $message = renderAlert('Student added', 'success');
             }
-        }
 
-        if ($action === 'update') {
-            // the guardian is NOT touched here, only the student's own info
-            UpdateRecord($pdo, 'students', (int)$_POST['id'], [
-                'fname'       => trim($_POST['fname']),
-                'lname'       => trim($_POST['lname']),
-                'grade_level' => trim($_POST['grade_level'] ?? '') ?: null,
-            ]);
-            $_POST['edit'] = 0;   // close the edit row
-            $message = renderAlert('Student updated', 'success');
-        }
+        } elseif ($action === 'update') {
+            if ($fname === '' || $lname === '') {
+                $message = renderAlert('First name and last name are required', 'danger');
+            } else {
+                // the guardian is NOT touched here, only the student's own info
+                $stmt = $pdo->prepare("UPDATE students
+                                       SET fname = :fname, lname = :lname, grade_level = :grade
+                                       WHERE id = :id AND school_year_id = :year");
+                $stmt->execute([
+                    ':fname' => $fname,
+                    ':lname' => $lname,
+                    ':grade' => $grade,
+                    ':id'    => $id,
+                    ':year'  => $year['id'],
+                ]);
+                $_POST['edit'] = 0;   // close the edit row
+                $message = $stmt->rowCount()
+                    ? renderAlert('Student updated', 'success')
+                    : renderAlert('Student not found', 'danger');
+            }
 
-        if ($action === 'delete') {
-            DeleteRecord($pdo, 'students', (int)$_POST['id']);
+        } elseif ($action === 'delete') {
+            $stmt = $pdo->prepare("DELETE FROM students WHERE id = :id AND school_year_id = :year");
+            $stmt->execute([':id' => $id, ':year' => $year['id']]);
 
             // if we were choosing a parent for this student, stop
-            if ((int)($_POST['assign'] ?? 0) === (int)$_POST['id']) {
+            if ((int)($_POST['assign'] ?? 0) === $id) {
                 $_POST['assign'] = 0;
             }
-            $message = renderAlert('Student deleted', 'success');
+            $message = $stmt->rowCount()
+                ? renderAlert('Student deleted', 'success')
+                : renderAlert('Student not found', 'danger');
+
+        } elseif ($action === 'assign') {
+            // Give the student a parent (the guardian must be from this school year too)
+            $guardianId = (int)($_POST['guardian_id'] ?? 0);
+
+            $stmt = $pdo->prepare("SELECT 1 FROM guardians WHERE id = :guardian AND school_year_id = :year");
+            $stmt->execute([':guardian' => $guardianId, ':year' => $year['id']]);
+
+            if (!$stmt->fetchColumn()) {
+                $message = renderAlert('Guardian not found', 'danger');
+            } else {
+                $stmt = $pdo->prepare("UPDATE students SET guardian_id = :guardian
+                                       WHERE id = :id AND school_year_id = :year");
+                $stmt->execute([':guardian' => $guardianId, ':id' => $id, ':year' => $year['id']]);
+                $message = $stmt->rowCount()
+                    ? renderAlert('Parent assigned', 'success')
+                    : renderAlert('Student not found', 'danger');
+            }
+
+        } elseif ($action === 'unassign') {
+            // Take the parent away (guardian_id becomes NULL, not 0)
+            $stmt = $pdo->prepare("UPDATE students SET guardian_id = NULL
+                                   WHERE id = :id AND school_year_id = :year");
+            $stmt->execute([':id' => $id, ':year' => $year['id']]);
+            $message = $stmt->rowCount()
+                ? renderAlert('Parent removed', 'success')
+                : renderAlert('Student not found', 'danger');
         }
 
-        // Give the student a parent
-        if ($action === 'assign') {
-            UpdateRecord($pdo, 'students', (int)$_POST['id'], [
-                'guardian_id' => (int)$_POST['guardian_id'],
-            ]);
-            $message = renderAlert('Parent assigned', 'success');
-        }
-
-        // Take the parent away (guardian_id becomes NULL, not 0)
-        if ($action === 'unassign') {
-            UpdateRecord($pdo, 'students', (int)$_POST['id'], [
-                'guardian_id' => null,
-            ]);
-            $message = renderAlert('Parent removed', 'success');
-        }
-
-    } catch (PDOException $e) {
-        $message = renderAlert('Could not save. Please check the data and try again.', 'danger');
+        $pdo->commit();
     }
+} catch (PDOException $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    err_log($e->getMessage());
+    $message = renderAlert('Could not save. Please check the data and try again.', 'danger');
 }
 
 // keep the same sort, search, page, edit and assign

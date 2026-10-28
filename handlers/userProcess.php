@@ -1,90 +1,171 @@
 <?php
 require_once("../public/initialize.php");
 require_once(DB_PATH);
-require_once(FUNCTIONS_PATH . DS . "DbFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "schoolFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "setErrorFunctions.php");
-require_once(DEBUG_PATH . DS . "debugFunctions.php");
+require_once(DEBUG_PATH . "debugFunctions.php");
 
-$year         = CurrentSchoolYear($pdo);
-$action       = $_POST['action'] ?? '';
-$message      = '';
-$isAdminExist = RecordExists($pdo, 'user_roles', 'role', 1);
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+$action  = $_POST['action'] ?? '';
+$message = '';
+$myId    = (int)($_SESSION['user_id'] ?? 0);   // the logged-in user (you can't delete yourself)
 
 try {
-    if ($year) {
+    $pdo->beginTransaction();
 
-        if ($action === 'create') {
-            // FIXED: Hashing the actual password input instead of the email
-            $hashedPassword = password_hash($_POST['password'], PASSWORD_DEFAULT);
-            
-            $pdo->beginTransaction();
+    $id       = (int)($_POST['id'] ?? 0);
+    $fname    = trim($_POST['fname'] ?? '');
+    $lname    = trim($_POST['lname'] ?? '');
+    $phone    = trim($_POST['phone'] ?? '');
+    $username = trim($_POST['username'] ?? '');
+    $email    = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+    $roleId   = (int)($_POST['assignRole'] ?? 0);   // 0 = no role chosen
 
-            // FIXED: Included fname, lname, and phone fields in the insert statement
-            $stmt = $pdo->prepare("INSERT INTO users (username, email, password, fname, lname, phone) VALUES (:username, :email, :password, :fname, :lname, :phone) RETURNING id");
+    // Is the chosen role a real one, and not admin? (admin can't be given here)
+    $roleOk = false;
+    if ($roleId) {
+        $stmt = $pdo->prepare("SELECT 1 FROM roles WHERE role_id = :role AND LOWER(role) <> 'admin'");
+        $stmt->execute([':role' => $roleId]);
+        $roleOk = (bool)$stmt->fetchColumn();
+    }
+
+    // For update and delete: the user, and whether it is an admin
+    $target = null;
+    if ($action === 'update' || $action === 'delete') {
+        $stmt = $pdo->prepare("SELECT u.id,
+                                      EXISTS (SELECT 1
+                                              FROM user_roles ur
+                                              JOIN roles r ON r.role_id = ur.role
+                                              WHERE ur.user_id = u.id AND LOWER(r.role) = 'admin') AS is_admin
+                               FROM users u
+                               WHERE u.id = :id");
+        $stmt->execute([':id' => $id]);
+        $target = $stmt->fetch() ?: null;
+    }
+
+    if ($action === 'create') {
+        $error = null;
+        if ($fname === '' || $lname === '') {
+            $error = 'First and last name are required.';
+        } elseif (!preg_match('/^[A-Za-z0-9._-]{3,30}$/', $username)) {
+            $error = 'Username must be 3-30 characters: letters, numbers, dot, dash or underscore.';
+        } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            $error = 'Please enter a valid email address.';
+        } elseif ($phone !== '' && !preg_match('/^[0-9+()\s-]{7,20}$/', $phone)) {
+            $error = 'Please enter a valid phone number.';
+        } elseif (strlen($password) < 8) {
+            $error = 'The password must be at least 8 characters.';
+        } elseif (!$roleOk) {
+            $error = 'Pick a role.';
+        }
+
+        if ($error) {
+            $message = renderAlert($error, 'danger');
+        } else {
+            // Postgres: lastInsertId() needs a sequence name, so ask the INSERT to return the id instead
+            $stmt = $pdo->prepare("INSERT INTO users (fname, lname, phone, username, email, password)
+                                   VALUES (:fname, :lname, :phone, :username, :email, :password)
+                                   RETURNING id");
             $stmt->execute([
-                ':username' => trim($_POST['username']) ?: null,
-                ':email'    => trim($_POST['email'])    ?: null,
-                ':password' => $hashedPassword,
-                ':fname'    => trim($_POST['fname'])    ?: 'NONE',
-                ':lname'    => trim($_POST['lname'])    ?: 'NONE',
-                ':phone'    => trim($_POST['phone'])    ?: null
+                ':fname'    => $fname,
+                ':lname'    => $lname,
+                ':phone'    => $phone ?: null,
+                ':username' => $username,
+                ':email'    => $email,
+                ':password' => password_hash($password, PASSWORD_DEFAULT),
             ]);
-
             $userId = $stmt->fetchColumn();
 
-            $stmtRole = $pdo->prepare("INSERT INTO user_roles (user_id, role) VALUES (:user_id, :role)");
-            $stmtRole->execute([
-                ':user_id' => $userId,
-                ':role'    => trim($_POST['createAssignedRole']) ?: null,
-            ]);
+            $stmt = $pdo->prepare("INSERT INTO user_roles (user_id, role) VALUES (:user_id, :role)");
+            $stmt->execute([':user_id' => $userId, ':role' => $roleId]);
 
-            $pdo->commit();
-            $message = renderAlert('User added successfully.', 'success');
+            $message = renderAlert('User added.', 'success');
         }
 
-        if ($action === 'update') {
-            UpdateRecord($pdo, 'users', (int)$_POST['id'], [
-                'fname'    => trim($_POST['fname']),
-                'lname'    => trim($_POST['lname']),
-                'phone'    => trim($_POST['phone'])    ?: null,
-                'username' => trim($_POST['username']) ?: null,
+    } elseif ($action === 'update') {
+        $error = null;
+        if (!$target) {
+            $error = 'User not found.';
+        } elseif ($target['is_admin']) {
+            $error = 'The admin account cannot be changed here.';
+        } elseif ($fname === '' || $lname === '') {
+            $error = 'First and last name are required.';
+        } elseif (!preg_match('/^[A-Za-z0-9._-]{3,30}$/', $username)) {
+            $error = 'Username must be 3-30 characters: letters, numbers, dot, dash or underscore.';
+        } elseif ($phone !== '' && !preg_match('/^[0-9+()\s-]{7,20}$/', $phone)) {
+            $error = 'Please enter a valid phone number.';
+        } elseif ($roleId && !$roleOk) {
+            $error = 'Pick a valid role.';
+        }
+
+        if ($error) {
+            $message = renderAlert($error, 'danger');
+        } else {
+            // the email is not changed here
+            $stmt = $pdo->prepare("UPDATE users
+                                   SET fname = :fname, lname = :lname, phone = :phone, username = :username
+                                   WHERE id = :id");
+            $stmt->execute([
+                ':fname'    => $fname,
+                ':lname'    => $lname,
+                ':phone'    => $phone ?: null,
+                ':username' => $username,
+                ':id'       => $id,
             ]);
 
-            if (!empty($_POST['assignRole'])) {
-                UpdateRecord($pdo, 'user_roles', (int)$_POST['id'], [
-                    'role' => trim($_POST['assignRole'])
-                ], 'user_id');
+            // a new role replaces the old one(s); no role chosen = leave the roles alone
+            if ($roleId) {
+                $stmt = $pdo->prepare("DELETE FROM user_roles WHERE user_id = :user_id");
+                $stmt->execute([':user_id' => $id]);
+
+                $stmt = $pdo->prepare("INSERT INTO user_roles (user_id, role) VALUES (:user_id, :role)");
+                $stmt->execute([':user_id' => $id, ':role' => $roleId]);
             }
 
-            $message = renderAlert('User updated successfully.', 'success');
+            $message = renderAlert('User updated.', 'success');
         }
 
-        if ($action === 'delete') {
-            $id = (int)$_POST['id'];
+    } elseif ($action === 'delete') {
+        if (!$target) {
+            $message = renderAlert('User not found.', 'danger');
+        } elseif ($target['is_admin']) {
+            $message = renderAlert('The admin account cannot be deleted.', 'danger');
+        } elseif ($id === $myId) {
+            $message = renderAlert('You cannot delete your own account.', 'danger');
+        } else {
+            // a user that still owns tests is not deleted
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM tests WHERE teacher_id = :id");
+            $stmt->execute([':id' => $id]);
 
-            // FIXED: Corrected context mismatch from 'guardians' to 'users' and managed user_roles cleanup
-            $pdo->beginTransaction();
+            if ((int)$stmt->fetchColumn() > 0) {
+                $message = renderAlert('This user still has tests. Delete the tests first.', 'danger');
+            } else {
+                $stmt = $pdo->prepare("DELETE FROM teacher_subjects WHERE teacher_id = :id");
+                $stmt->execute([':id' => $id]);
 
-            $stmtRoleDel = $pdo->prepare("DELETE FROM user_roles WHERE user_id = :user_id");
-            $stmtRoleDel->execute([':user_id' => $id]);
+                $stmt = $pdo->prepare("DELETE FROM user_roles WHERE user_id = :id");
+                $stmt->execute([':id' => $id]);
 
-            DeleteRecord($pdo, 'users', $id);
+                $stmt = $pdo->prepare("DELETE FROM users WHERE id = :id");
+                $stmt->execute([':id' => $id]);
 
-            $pdo->commit();
-            $message = renderAlert('User deleted successfully.', 'success');
+                $message = renderAlert('User deleted.', 'success');
+            }
         }
-    
     }
+
+    $pdo->commit();
 } catch (PDOException $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    $msg = SetErrorMessage($e);
     err_log($e->getMessage());
-    // FIXED: Changed alert type from 'success' to 'danger' for database exceptions
-    $message = renderAlert($e->getMessage(), 'danger');
+    $message = renderAlert(SetErrorMessage($e), 'danger');
 }
 
 // Hand the page its state back (same keys as $state in manage_users.php)

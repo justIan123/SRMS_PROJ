@@ -1,6 +1,8 @@
 <?php
 require_once("../public/initialize.php");
 require_once(DB_PATH);
+require_once(FUNCTIONS_PATH . DS . "setErrorFunctions.php");
+require_once(DEBUG_PATH . "debugFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "schoolFunctions.php");
 
@@ -85,14 +87,12 @@ try {
 
     if ($assignId) {
         // all active users that have the "teacher" role
-        $stmt = $pdo->prepare(
-            "SELECT u.id, u.fname, u.lname
-            FROM users u
-            JOIN user_roles ur ON ur.user_id = u.id
-            JOIN roles r ON r.role_id = ur.role
-            WHERE ur.role = 3 AND u.is_active = :active
-            ORDER BY u.lname, u.fname
-        ");
+        $stmt = $pdo->prepare("SELECT u.id, u.fname, u.lname
+                               FROM users u
+                               JOIN user_roles ur ON ur.user_id = u.id
+                               JOIN roles r ON r.role_id = ur.role
+                               WHERE LOWER(r.role) = 'teacher' AND u.is_active = :active
+                               ORDER BY u.lname, u.fname");
         $stmt->execute([':active' => 1]);
         $teachers = $stmt->fetchAll();
 
