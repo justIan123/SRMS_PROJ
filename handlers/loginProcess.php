@@ -40,17 +40,21 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         } else {
             // Upgrade the stored hash if PHP's default algorithm/cost has changed
             if (password_needs_rehash($user['password'], PASSWORD_DEFAULT)) {
-                $upd = $pdo->prepare("UPDATE users SET password = :p WHERE id = :id");
-                $upd->execute([
-                    ':p'  => password_hash($password, PASSWORD_DEFAULT),
-                    ':id' => $user['id'],
+                $pdo->beginTransaction();
+
+                $stmt = $pdo->prepare("UPDATE users SET password = :password WHERE id = :id");
+                $stmt->execute([
+                    ':password' => password_hash($password, PASSWORD_DEFAULT),
+                    ':id'       => $user['id'],
                 ]);
+
+                $pdo->commit();
             }
 
-            // Load role ids (1 = admin, 2 = teacher, 3 = employee) for permission checks
-            $rs = $pdo->prepare("SELECT role FROM user_roles WHERE user_id = :id");
-            $rs->execute([':id' => $user['id']]);
-            $roles = array_map('intval', $rs->fetchAll(PDO::FETCH_COLUMN));
+            // Load role ids for permission checks
+            $stmt = $pdo->prepare("SELECT role FROM user_roles WHERE user_id = :id");
+            $stmt->execute([':id' => $user['id']]);
+            $roles = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
 
             // New session id after login prevents session fixation
             session_regenerate_id(true);
@@ -64,8 +68,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         }
 
     } catch (PDOException $e) {
-        error_log($e->getMessage());
-        $err = "Something went wrong. Please try again.";
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        err_log($e->getMessage());
+
+        $err = SetErrorMessage($e);
     }
 }
 ?>

@@ -1,55 +1,73 @@
 <?php
 require_once("../public/initialize.php");
 require_once(DB_PATH);
-require_once(FUNCTIONS_PATH . DS . "DbFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "schoolFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
-
-// Everything belongs to the current school year
-$year = CurrentSchoolYear($pdo);
-if (!$year) {
-    echo alertBox('warning', 'No school year is running. Start one in School Years first.');
-    return;
-}
 
 $guardiansUrl = COMPONENTS_URL . 'manage_guardians.php';
 $teachersUrl  = COMPONENTS_URL . 'manage_teachers.php';
 $usersUrl     = COMPONENTS_URL . 'manage_users.php';
 
-// ---- numbers ----
-$totalStudents  = CountRecords($pdo, 'students');
-$totalGuardians = CountRecords($pdo, 'guardians', ['school_year_id' => $year['id']]);
-$totalUsers     = CountRecords($pdo, 'users');
-
-// people by role
-$roles = $pdo->query("SELECT r.role AS name, COUNT(*) AS total
-                      FROM user_roles ur
-                      JOIN roles r ON r.role_id = ur.role
-                      GROUP BY r.role
-                      ORDER BY total DESC")->fetchAll();
-
-$totalTeachers = 0;
-foreach ($roles as $role) {
-    if (strtolower($role['name']) === 'teacher') {
-        $totalTeachers = $role['total'];
+try {
+    // Everything belongs to the current school year
+    $year = CurrentSchoolYear($pdo);
+    if (!$year) {
+        echo alertBox('warning', 'No school year is running. Start one in School Years first.');
+        return;
     }
+
+    // ---- numbers ----
+    $totalStudents = (int)$pdo->query("SELECT COUNT(*) FROM students")->fetchColumn();
+    $totalUsers    = (int)$pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
+
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM guardians WHERE school_year_id = :year");
+    $stmt->execute([':year' => $year['id']]);
+    $totalGuardians = (int)$stmt->fetchColumn();
+
+    // people by role
+    $roles = $pdo->query("SELECT r.role AS name, COUNT(*) AS total
+                          FROM user_roles ur
+                          JOIN roles r ON r.role_id = ur.role
+                          GROUP BY r.role
+                          ORDER BY total DESC")->fetchAll();
+
+    $totalTeachers = 0;
+    foreach ($roles as $role) {
+        if (strtolower($role['name']) === 'teacher') {
+            $totalTeachers = $role['total'];
+        }
+    }
+
+    // guardians that have no student yet
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM guardians g
+                           WHERE g.school_year_id = :year
+                             AND NOT EXISTS (SELECT 1 FROM students s WHERE s.guardian_id = g.id)");
+    $stmt->execute([':year' => $year['id']]);
+    $noStudent = (int)$stmt->fetchColumn();
+
+    // newest 5 users (with their role)
+    $newUsers = $pdo->query("SELECT u.id, u.fname, u.lname, u.email,
+                                    (SELECT string_agg(r.role, ', ')
+                                     FROM user_roles ur
+                                     JOIN roles r ON r.role_id = ur.role
+                                     WHERE ur.user_id = u.id) AS roles
+                             FROM users u
+                             ORDER BY u.id DESC
+                             LIMIT 5")->fetchAll();
+
+    // newest 5 guardians of this school year
+    $stmt = $pdo->prepare("SELECT id, fname, lname, phone, email
+                           FROM guardians
+                           WHERE school_year_id = :year
+                           ORDER BY id DESC
+                           LIMIT 5");
+    $stmt->execute([':year' => $year['id']]);
+    $newGuardians = $stmt->fetchAll();
+} catch (PDOException $e) {
+    err_log($e->getMessage());
+    echo alertBox('danger', 'Could not load the dashboard. Please try again.');
+    return;
 }
-
-// guardians that have no student yet
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM guardians g
-                       WHERE g.school_year_id = :year
-                         AND NOT EXISTS (SELECT 1 FROM students s WHERE s.guardian_id = g.id)");
-$stmt->execute([':year' => $year['id']]);
-$noStudent = (int)$stmt->fetchColumn();
-
-// newest 5 users (with their role) and newest 5 guardians
-$newUsers = ListRecords($pdo, 'users', [], [], '', 5, 0, 'id', 'DESC', [
-    'roles' => "SELECT string_agg(r.role, ', ')
-                FROM user_roles ur
-                JOIN roles r ON r.role_id = ur.role
-                WHERE ur.user_id = users.id"
-]);
-$newGuardians = ListRecords($pdo, 'guardians', ['school_year_id' => $year['id']], [], '', 5, 0, 'id', 'DESC');
 
 // the four number cards: label, value, color, link
 $cards = [

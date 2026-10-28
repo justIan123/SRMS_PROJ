@@ -1,27 +1,16 @@
 <?php
 require_once("../public/initialize.php");
 require_once(DB_PATH);
-require_once(FUNCTIONS_PATH . DS . "DbFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "schoolFunctions.php");
 
 $self    = COMPONENTS_URL . 'manage_subjects.php';
 $handler = HANDLERS_URL . 'subjectsProcess.php';
-$table   = 'subjects';
-
-// Everything belongs to the current school year
-$year = CurrentSchoolYear($pdo);
-if (!$year) {
-    echo alertBox('warning', 'No school year is running. Start one in School Years first.');
-    return;
-}
-$where = ['school_year_id' => $year['id']];
 
 // ---- search ----
 $search = trim($_GET['search'] ?? '');
-$cols   = ['subject_name', 'subject_description'];
 
-// ---- sort ----
+// ---- sort (only a key of $headers can ever reach the SQL) ----
 $headers = [
     'id'                  => 'ID',
     'subject_name'        => 'Subject',
@@ -33,21 +22,7 @@ $sort = array_key_exists($_GET['sort'] ?? '', $headers) ? $_GET['sort'] : 'id';
 $dir  = ($_GET['dir'] ?? '') === 'DESC' ? 'DESC' : 'ASC';
 $flip = $dir === 'ASC' ? 'DESC' : 'ASC';
 
-// ---- pagination ----
-$perPage    = max(1, (int)($_GET['PerPageLimit'] ?? 10));
-$total      = CountList($pdo, $table, $where, $cols, $search);
-$totalPages = max(1, (int)ceil($total / $perPage));
-$page       = min(max(1, (int)($_GET['PageNum'] ?? 1)), $totalPages);
-
-// Teachers of each subject, shown as one text value ("Ann Cruz, Ben Lee")
-$extra = [
-    'teachers' => "SELECT string_agg(u.fname || ' ' || u.lname, ', ')
-                   FROM teacher_subjects ts
-                   JOIN users u ON u.id = ts.teacher_id
-                   WHERE ts.subject_id = subjects.id"
-];
-
-$rows = ListRecords($pdo, $table, $where, $cols, $search, $perPage, ($page - 1) * $perPage, $sort, $dir, $extra);
+$perPage = max(1, (int)($_GET['PerPageLimit'] ?? 10));
 
 // ---- which subject is being edited / getting teachers ----
 $editId   = (int)($_GET['edit'] ?? 0);
@@ -58,31 +33,78 @@ $assignSubject = null;
 $teachers      = [];
 $assignedIds   = [];
 
-if ($assignId) {
-    $assignSubject = FindById($pdo, $table, $assignId);
-
-    // forget it if the subject does not exist or is from another school year
-    if (!$assignSubject || $assignSubject['school_year_id'] != $year['id']) {
-        $assignSubject = null;
-        $assignId      = 0;
+try {
+    // Everything belongs to the current school year
+    $year = CurrentSchoolYear($pdo);
+    if (!$year) {
+        echo alertBox('warning', 'No school year is running. Start one in School Years first.');
+        return;
     }
-}
 
-if ($assignId) {
-    // all active users that have the "teacher" role
-    $stmt = $pdo->prepare("SELECT u.id, u.fname, u.lname
-                         FROM users u
-                         JOIN user_roles ur ON ur.user_id = u.id
-                         JOIN roles r ON r.role_id = ur.role
-                         WHERE ur.role = 3 AND u.is_active = :active
-                         ORDER BY u.lname, u.fname");
-    $stmt->execute(normalizeParams([':active' => 1]));
-    $teachers = $stmt->fetchAll();
-
-    // teachers already assigned to this subject
-    foreach (FindWhere($pdo, 'teacher_subjects', ['subject_id' => $assignId]) as $ts) {
-        $assignedIds[] = $ts['teacher_id'];
+    // WHERE shared by the count query and the list query
+    $sqlWhere = "WHERE school_year_id = :year";
+    $params   = [':year' => $year['id']];
+    if ($search !== '') {
+        $like      = '%' . $search . '%';
+        $sqlWhere .= " AND (subject_name ILIKE :s1 OR subject_description ILIKE :s2)";
+        $params   += [':s1' => $like, ':s2' => $like];
     }
+
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM subjects $sqlWhere");
+    $stmt->execute($params);
+    $total = (int)$stmt->fetchColumn();
+
+    $totalPages = max(1, (int)ceil($total / $perPage));
+    $page       = min(max(1, (int)($_GET['PageNum'] ?? 1)), $totalPages);
+    $offset     = ($page - 1) * $perPage;
+
+    // Teachers of each subject, shown as one text value ("Ann Cruz, Ben Lee")
+    $stmt = $pdo->prepare("SELECT subjects.*,
+                                  (SELECT string_agg(u.fname || ' ' || u.lname, ', ')
+                                   FROM teacher_subjects ts
+                                   JOIN users u ON u.id = ts.teacher_id
+                                   WHERE ts.subject_id = subjects.id) AS teachers
+                           FROM subjects
+                           $sqlWhere
+                           ORDER BY $sort $dir
+                           LIMIT $perPage OFFSET $offset");
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll();
+
+    // ---- the subject that is getting teachers ----
+    if ($assignId) {
+        // not found, or from another school year: forget it
+        $stmt = $pdo->prepare("SELECT * FROM subjects WHERE id = :id AND school_year_id = :year");
+        $stmt->execute([':id' => $assignId, ':year' => $year['id']]);
+        $assignSubject = $stmt->fetch() ?: null;
+
+        if (!$assignSubject) {
+            $assignId = 0;
+        }
+    }
+
+    if ($assignId) {
+        // all active users that have the "teacher" role
+        $stmt = $pdo->prepare(
+            "SELECT u.id, u.fname, u.lname
+            FROM users u
+            JOIN user_roles ur ON ur.user_id = u.id
+            JOIN roles r ON r.role_id = ur.role
+            WHERE ur.role = 3 AND u.is_active = :active
+            ORDER BY u.lname, u.fname
+        ");
+        $stmt->execute([':active' => 1]);
+        $teachers = $stmt->fetchAll();
+
+        // teachers already assigned to this subject
+        $stmt = $pdo->prepare("SELECT teacher_id FROM teacher_subjects WHERE subject_id = :subject");
+        $stmt->execute([':subject' => $assignId]);
+        $assignedIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    }
+} catch (PDOException $e) {
+    err_log($e->getMessage());
+    echo alertBox('danger', 'Could not load the subjects. Please try again.');
+    return;
 }
 
 // ---- remember where we are (every link and form carries this) ----

@@ -1,27 +1,16 @@
 <?php
 require_once("../public/initialize.php");
 require_once(DB_PATH);
-require_once(FUNCTIONS_PATH . DS . "DbFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "schoolFunctions.php");
 
 $self    = COMPONENTS_URL . 'manage_students.php';
 $handler = HANDLERS_URL . 'studentProcess.php';
-$table   = 'students';
-
-// Everything belongs to the current school year
-$year = CurrentSchoolYear($pdo);
-if (!$year) {
-    echo alertBox('warning', 'No school year is running. Start one in School Years first.');
-    return;
-}
-$where = ['school_year_id' => $year['id']];
 
 // ---- search ----
 $search = trim($_GET['search'] ?? '');
-$cols   = ['fname', 'lname', 'grade_level'];
 
-// ---- sort ----
+// ---- sort (only a key of $headers can ever reach the SQL) ----
 $headers = [
     'id'            => 'ID',
     'fname'         => 'First name',
@@ -33,60 +22,103 @@ $sort = array_key_exists($_GET['sort'] ?? '', $headers) ? $_GET['sort'] : 'id';
 $dir  = ($_GET['dir'] ?? '') === 'DESC' ? 'DESC' : 'ASC';
 $flip = $dir === 'ASC' ? 'DESC' : 'ASC';
 
-// ---- pagination (students) ----
-$perPage    = max(1, (int)($_GET['PerPageLimit'] ?? 10));
-$total      = CountList($pdo, $table, $where, $cols, $search);
-$totalPages = max(1, (int)ceil($total / $perPage));
-$page       = min(max(1, (int)($_GET['PageNum'] ?? 1)), $totalPages);
-
-// The guardian's name of each student, shown as one text value
-$extra = [
-    'guardian_name' => "SELECT g.fname || ' ' || g.lname
-                        FROM guardians g
-                        WHERE g.id = students.guardian_id"
-];
-
-$rows = ListRecords($pdo, $table, $where, $cols, $search, $perPage, ($page - 1) * $perPage, $sort, $dir, $extra);
+$perPage = max(1, (int)($_GET['PerPageLimit'] ?? 10));
 
 // ---- which student is being edited / getting a parent ----
 $editId   = (int)($_GET['edit'] ?? 0);
 $assignId = (int)($_GET['assign'] ?? 0);
+$gsearch  = trim($_GET['gsearch'] ?? '');
 
 // ---- guardian list (only loaded while choosing a parent) ----
 $assignStudent     = null;
 $currentGuardianId = 0;
-$gsearch           = trim($_GET['gsearch'] ?? '');
 $gRows             = [];
 $gPage             = 1;
 $gTotalPages       = 1;
 
-if ($assignId) {
-    $assignStudent = FindById($pdo, $table, $assignId);
-
-    // forget it if the student does not exist or is from another school year
-    if (!$assignStudent || $assignStudent['school_year_id'] != $year['id']) {
-        $assignStudent = null;
-        $assignId      = 0;
+try {
+    // Everything belongs to the current school year
+    $year = CurrentSchoolYear($pdo);
+    if (!$year) {
+        echo alertBox('warning', 'No school year is running. Start one in School Years first.');
+        return;
     }
-}
 
-if ($assignId) {
-    $currentGuardianId = (int)($assignStudent['guardian_id'] ?? 0);
+    // ---- students: WHERE shared by the count query and the list query ----
+    $sqlWhere = "WHERE s.school_year_id = :year";
+    $params   = [':year' => $year['id']];
+    if ($search !== '') {
+        $like      = '%' . $search . '%';
+        $sqlWhere .= " AND (s.fname ILIKE :s1 OR s.lname ILIKE :s2 OR CAST(s.grade_level AS TEXT) ILIKE :s3)";
+        $params   += [':s1' => $like, ':s2' => $like, ':s3' => $like];
+    }
 
-    $gCols = ['fname', 'lname', 'phone'];
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM students s $sqlWhere");
+    $stmt->execute($params);
+    $total = (int)$stmt->fetchColumn();
 
-    // the children of each guardian, shown as one text value
-    $gExtra = [
-        'children' => "SELECT string_agg(s.fname || ' ' || s.lname, ', ')
-                       FROM students s
-                       WHERE s.guardian_id = guardians.id"
-    ];
+    $totalPages = max(1, (int)ceil($total / $perPage));
+    $page       = min(max(1, (int)($_GET['PageNum'] ?? 1)), $totalPages);
+    $offset     = ($page - 1) * $perPage;
 
-    $gTotal      = CountList($pdo, 'guardians', $where, $gCols, $gsearch);
-    $gTotalPages = max(1, (int)ceil($gTotal / $perPage));
-    $gPage       = min(max(1, (int)($_GET['gPageNum'] ?? 1)), $gTotalPages);
+    // The guardian's name of each student, shown as one text value (NULL when there is no guardian)
+    $stmt = $pdo->prepare("SELECT s.*, g.fname || ' ' || g.lname AS guardian_name
+                           FROM students s
+                           LEFT JOIN guardians g ON g.id = s.guardian_id
+                           $sqlWhere
+                           ORDER BY $sort $dir
+                           LIMIT $perPage OFFSET $offset");
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll();
 
-    $gRows = ListRecords($pdo, 'guardians', $where, $gCols, $gsearch, $perPage, ($gPage - 1) * $perPage, 'id', 'ASC', $gExtra);
+    // ---- the student that is getting a parent ----
+    if ($assignId) {
+        // not found, or from another school year: forget it
+        $stmt = $pdo->prepare("SELECT * FROM students WHERE id = :id AND school_year_id = :year");
+        $stmt->execute([':id' => $assignId, ':year' => $year['id']]);
+        $assignStudent = $stmt->fetch() ?: null;
+
+        if (!$assignStudent) {
+            $assignId = 0;
+        }
+    }
+
+    // ---- the guardians to choose from ----
+    if ($assignId) {
+        $currentGuardianId = (int)($assignStudent['guardian_id'] ?? 0);
+
+        $gWhere  = "WHERE g.school_year_id = :year";
+        $gParams = [':year' => $year['id']];
+        if ($gsearch !== '') {
+            $gLike    = '%' . $gsearch . '%';
+            $gWhere  .= " AND (g.fname ILIKE :s1 OR g.lname ILIKE :s2 OR g.phone ILIKE :s3)";
+            $gParams += [':s1' => $gLike, ':s2' => $gLike, ':s3' => $gLike];
+        }
+
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM guardians g $gWhere");
+        $stmt->execute($gParams);
+        $gTotal = (int)$stmt->fetchColumn();
+
+        $gTotalPages = max(1, (int)ceil($gTotal / $perPage));
+        $gPage       = min(max(1, (int)($_GET['gPageNum'] ?? 1)), $gTotalPages);
+        $gOffset     = ($gPage - 1) * $perPage;
+
+        // the children of each guardian, shown as one text value
+        $stmt = $pdo->prepare("SELECT g.*,
+                                      (SELECT string_agg(c.fname || ' ' || c.lname, ', ')
+                                       FROM students c
+                                       WHERE c.guardian_id = g.id) AS children
+                               FROM guardians g
+                               $gWhere
+                               ORDER BY g.id ASC
+                               LIMIT $perPage OFFSET $gOffset");
+        $stmt->execute($gParams);
+        $gRows = $stmt->fetchAll();
+    }
+} catch (PDOException $e) {
+    err_log($e->getMessage());
+    echo alertBox('danger', 'Could not load the students. Please try again.');
+    return;
 }
 
 // ---- remember where we are (every link and form carries this) ----

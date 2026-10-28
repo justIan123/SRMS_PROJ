@@ -1,5 +1,15 @@
 <?php
 /**
+ * @param string $message enter msg that show JS alert message
+ * use for debug 
+ */
+function alert(String $message) {
+    $safeMessage = json_encode($message);
+    
+    ;echo "<script type='text/javascript'>alert($safeMessage);</script>";
+}
+
+/**
  * @param string $message - Any alert messages you want to send to end user
  * @param string $typeAlert - bootstrap alert type
  * Values: primary, secondary, success, danger, warning, info, light, dark

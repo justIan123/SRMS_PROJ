@@ -1,6 +1,10 @@
 <?php
 // Helpers for the test maker: teachers create tests for their own subjects
 // in the current school year. Put this file in FUNCTIONS_PATH.
+//
+// Plain PDO: every function runs its own prepare() / execute().
+// The write functions use a transaction and re-throw after the rollback,
+// so the page or handler that calls them decides what to show.
 
 /**
  * The logged-in user's id, or 0 when nobody is logged in.
@@ -35,33 +39,42 @@ function TeacherSubjects(PDO $pdo, int $teacherId, int $yearId): array
                              AND s.school_year_id = :year
                              AND s.is_active = :active
                            ORDER BY s.subject_name");
-    $stmt->execute(normalizeParams([':teacher' => $teacherId, ':year' => $yearId, ':active' => 1]));
+    $stmt->execute([':teacher' => $teacherId, ':year' => $yearId, ':active' => 1]);
     return $stmt->fetchAll();
 }
 
 /** The test row, but only if it belongs to this teacher and this school year. Otherwise null. */
 function FindMyTest(PDO $pdo, int $testId, int $teacherId, int $yearId): ?array
 {
-    $test = FindById($pdo, 'tests', $testId);
+    $stmt = $pdo->prepare("SELECT *
+                           FROM tests
+                           WHERE id = :test AND teacher_id = :teacher AND school_year_id = :year
+                           LIMIT 1");
+    $stmt->execute([':test' => $testId, ':teacher' => $teacherId, ':year' => $yearId]);
 
-    if (!$test || (int)$test['teacher_id'] !== $teacherId || (int)$test['school_year_id'] !== $yearId) {
-        return null;
-    }
-    return $test;
+    return $stmt->fetch() ?: null;
 }
 
 /** Delete a test together with its questions and choices. */
 function DeleteTest(PDO $pdo, int $testId): void
 {
-    $pdo->beginTransaction();
     try {
+        $pdo->beginTransaction();
+
         $stmt = $pdo->prepare("DELETE FROM choices WHERE question_id IN (SELECT id FROM questions WHERE test_id = :test)");
         $stmt->execute([':test' => $testId]);
-        DeleteRecord($pdo, 'questions', $testId, 'test_id');
-        DeleteRecord($pdo, 'tests', $testId);
+
+        $stmt = $pdo->prepare("DELETE FROM questions WHERE test_id = :test");
+        $stmt->execute([':test' => $testId]);
+
+        $stmt = $pdo->prepare("DELETE FROM tests WHERE id = :test");
+        $stmt->execute([':test' => $testId]);
+
         $pdo->commit();
     } catch (Throwable $e) {
-        $pdo->rollBack();
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         throw $e;
     }
 }
@@ -69,13 +82,20 @@ function DeleteTest(PDO $pdo, int $testId): void
 /** Delete one question together with its choices. */
 function DeleteQuestion(PDO $pdo, int $questionId): void
 {
-    $pdo->beginTransaction();
     try {
-        DeleteRecord($pdo, 'choices', $questionId, 'question_id');
-        DeleteRecord($pdo, 'questions', $questionId);
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare("DELETE FROM choices WHERE question_id = :question");
+        $stmt->execute([':question' => $questionId]);
+
+        $stmt = $pdo->prepare("DELETE FROM questions WHERE id = :question");
+        $stmt->execute([':question' => $questionId]);
+
         $pdo->commit();
     } catch (Throwable $e) {
-        $pdo->rollBack();
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         throw $e;
     }
 }
@@ -121,30 +141,40 @@ function ReadQuestionForm(array $post): array
 /** Insert a question (or update it when $questionId is given) together with its choices. */
 function SaveQuestion(PDO $pdo, int $testId, ?int $questionId, string $text, int $points, array $choices, int $correct): void
 {
-    $pdo->beginTransaction();
     try {
+        $pdo->beginTransaction();
+
         if ($questionId === null) {
-            $questionId = (int)InsertRecord($pdo, 'questions', [
-                'test_id'       => $testId,
-                'question_text' => $text,
-                'points'        => $points,
-            ]);
+            // Postgres: lastInsertId() needs a sequence name, so the INSERT returns the id itself
+            $stmt = $pdo->prepare("INSERT INTO questions (test_id, question_text, points)
+                                   VALUES (:test, :text, :points)
+                                   RETURNING id");
+            $stmt->execute([':test' => $testId, ':text' => $text, ':points' => $points]);
+            $questionId = (int)$stmt->fetchColumn();
         } else {
-            UpdateRecord($pdo, 'questions', $questionId, ['question_text' => $text, 'points' => $points]);
-            DeleteRecord($pdo, 'choices', $questionId, 'question_id');   // choices are re-added below
+            $stmt = $pdo->prepare("UPDATE questions SET question_text = :text, points = :points WHERE id = :question");
+            $stmt->execute([':text' => $text, ':points' => $points, ':question' => $questionId]);
+
+            // the choices are re-added below
+            $stmt = $pdo->prepare("DELETE FROM choices WHERE question_id = :question");
+            $stmt->execute([':question' => $questionId]);
         }
 
+        $stmt = $pdo->prepare("INSERT INTO choices (question_id, choice_text, is_correct)
+                               VALUES (:question, :choice, :correct)");
         foreach ($choices as $i => $choice) {
-            // 4th argument null = we don't need the new choice id back
-            InsertRecord($pdo, 'choices', [
-                'question_id' => $questionId,
-                'choice_text' => $choice,
-                'is_correct'  => $i === $correct ? 1 : 0,
-            ], null);
+            $stmt->execute([
+                ':question' => $questionId,
+                ':choice'   => $choice,
+                ':correct'  => $i === $correct ? 1 : 0,
+            ]);
         }
+
         $pdo->commit();
     } catch (Throwable $e) {
-        $pdo->rollBack();
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
         throw $e;
     }
 }

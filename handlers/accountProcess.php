@@ -1,8 +1,9 @@
 <?php
 require_once("../public/initialize.php");
 require_once(DB_PATH);
-require_once(FUNCTIONS_PATH . DS . "DbFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
+require_once(FUNCTIONS_PATH . DS . "setErrorFunctions.php");
+require_once(DEBUG_PATH . "debugFunctions.php");
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -49,13 +50,21 @@ try {
             throw new RuntimeException('Please enter a valid phone number.');
         }
 
-        UpdateRecord($pdo, 'users', $userId, [
-            'fname'    => $fname,
-            'lname'    => $lname,
-            'username' => $username,
-            'email'    => $email,
-            'phone'    => $phone ?: null,
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare("UPDATE users
+                               SET fname = :fname, lname = :lname, username = :username, email = :email, phone = :phone
+                               WHERE id = :id");
+        $stmt->execute([
+            ':fname'    => $fname,
+            ':lname'    => $lname,
+            ':username' => $username,
+            ':email'    => $email,
+            ':phone'    => $phone ?: null,
+            ':id'       => $userId,
         ]);
+
+        $pdo->commit();
 
         $old     = [];
         $message = renderAlert('Profile updated.', 'success');
@@ -84,9 +93,15 @@ try {
             throw new RuntimeException('The new password must be different from the current one.');
         }
 
-        UpdateRecord($pdo, 'users', $userId, [
-            'password' => password_hash($new, PASSWORD_DEFAULT),
+        $pdo->beginTransaction();
+
+        $stmt = $pdo->prepare("UPDATE users SET password = :password WHERE id = :id");
+        $stmt->execute([
+            ':password' => password_hash($new, PASSWORD_DEFAULT),
+            ':id'       => $userId,
         ]);
+
+        $pdo->commit();
 
         session_regenerate_id(true);   // new session id after a credential change
         $message = renderAlert('Password changed.', 'success');
@@ -96,19 +111,26 @@ try {
         throw new RuntimeException('Unknown action.');
     }
 
+} catch (PDOException $e) {
+    // This one MUST come before RuntimeException: PDOException is a kind of RuntimeException,
+    // so with the order the other way round, database errors were caught there, the rollback
+    // never ran and the raw database message was shown to the user.
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    err_log($e->getMessage());
+
+    // 23505 = Postgres "unique violation" (23000 was the SQLite/MySQL code)
+    if ($e->getCode() === '23505') {
+        $what = (str_contains($e->getMessage(), 'Key (email)') || str_contains($e->getMessage(), 'users_email')) ? 'email' : 'username';
+        $message = renderAlert("That $what is already in use.", 'danger');
+    } else {
+        $message = renderAlert(SetErrorMessage($e), 'danger');
+    }
+
 } catch (RuntimeException $e) {
     // Messages we wrote ourselves, safe to show.
     $message = renderAlert($e->getMessage(), 'danger');
-
-} catch (PDOException $e) {
-    // Never show raw database errors to the user.
-    if ($e->getCode() === '23000') {
-        $what = str_contains($e->getMessage(), 'users.email') ? 'email' : 'username';
-        $message = renderAlert("That $what is already in use.", 'danger');
-    } else {
-        error_log($e->getMessage());
-        $message = renderAlert('Something went wrong. Please try again.', 'danger');
-    }
 }
 
 require_once(COMPONENTS_PATH . DS . "manage_myAccount.php");

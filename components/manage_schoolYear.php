@@ -1,11 +1,17 @@
 <?php
 require_once("../public/initialize.php");
 require_once(DB_PATH);
-require_once(FUNCTIONS_PATH . DS . "DbFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "schoolFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 
-$years = FindAll($pdo, 'school_years', 50, 0, 'start_date', 'DESC'); // newest first
+try {
+    // newest first
+    $years = $pdo->query("SELECT * FROM school_years ORDER BY start_date DESC LIMIT 50")->fetchAll();
+} catch (PDOException $e) {
+    err_log($e->getMessage());
+    echo alertBox('danger', 'Could not load the school years. Please try again.');
+    return;
+}
 ?>
 
 <div hx-target="#main" hx-indicator="#global-spinner">

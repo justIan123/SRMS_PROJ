@@ -2,6 +2,7 @@
 require_once("../public/initialize.php");
 require_once(HANDLERS_PATH . DS . "loginProcess.php");
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
+$message = $_GET['message'] ?? '';
 ?>
 <!doctype html>
 <html lang="en">
@@ -54,14 +55,15 @@ require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
                     </div>
                     <div class="mb-3">
                         <?= renderAlert((!empty($err) ? $err: ""), "warning") ?>
+                        <?= renderAlert((!empty($message) ? $message: ""), "success") ?>
                     </div>
                     <div class="mb-3">
                         <button class="btn btn-primary" type="submit">Login</button>
                     </div>
-                    <div class="mb-1 text-center">
+                    <!-- <div class="mb-1 text-center">
                         <label class="form-label"></label>
                         <a href="register_page">sdfsdfsdf</a>
-                    </div>
+                    </div> -->
                 </form>
             </div>
         </div>

@@ -1,41 +1,63 @@
 <?php
 require_once("../public/initialize.php");
 require_once(DB_PATH);
-require_once(FUNCTIONS_PATH . DS . "DbFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "schoolFunctions.php");
 
-$self  = COMPONENTS_URL . 'manage_teachers.php';
+$self = COMPONENTS_URL . 'manage_teachers.php';
 // this is suppose to be teacher but it seems the logic is that the users is already exist
 // and the roles of the teacher in the user table is alreadyexist
-$table = 'users';
-
-// Everything belongs to the current school year
-$year = CurrentSchoolYear($pdo);
-if (!$year) {
-    echo alertBox('warning', 'No school year is running. Start one in School Years first.');
-    return;
-}
-$where = [];
 
 // ---- search ----
 $search = trim($_GET['search'] ?? '');
-$cols   = ['fname', 'lname', 'phone', 'email'];
 
-// ---- sort ----
+// ---- sort (only a key of $headers can ever reach the SQL) ----
 $headers = ['id' => 'ID', 'fname' => 'First name', 'lname' => 'Last name', 'phone' => 'Phone', 'email' => 'Email'];
 $sort = array_key_exists($_GET['sort'] ?? '', $headers) ? $_GET['sort'] : 'id';
 $dir  = ($_GET['dir'] ?? '') === 'DESC' ? 'DESC' : 'ASC';
 $flip = $dir === 'ASC' ? 'DESC' : 'ASC';
 
-// ---- pagination ----
-$perPage    = (int)($_GET['PerPageLimit'] ?? 10);
-$total      = CountList($pdo, $table, $where, $cols, $search);
-$totalPages = max(1, ceil($total / $perPage));
-$page       = min(max(1, (int)($_GET['tpage'] ?? 1)), $totalPages);
+$perPage = max(1, (int)($_GET['PerPageLimit'] ?? 10));
+$editId  = (int)($_GET['edit'] ?? 0);
 
-$rows   = ListRecords($pdo, $table, $where, $cols, $search, $perPage, ($page - 1) * $perPage, $sort, $dir);
-$editId = (int)($_GET['edit'] ?? 0);
+try {
+    // Everything belongs to the current school year
+    $year = CurrentSchoolYear($pdo);
+    if (!$year) {
+        echo alertBox('warning', 'No school year is running. Start one in School Years first.');
+        return;
+    }
+
+    // WHERE shared by the count query and the list query (no search = no WHERE)
+    $sqlWhere = '';
+    $params   = [];
+    if ($search !== '') {
+        $like     = '%' . $search . '%';
+        $sqlWhere = "WHERE (fname ILIKE :s1 OR lname ILIKE :s2 OR phone ILIKE :s3 OR email ILIKE :s4)";
+        $params   = [':s1' => $like, ':s2' => $like, ':s3' => $like, ':s4' => $like];
+    }
+
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM users $sqlWhere");
+    $stmt->execute($params);
+    $total = (int)$stmt->fetchColumn();
+
+    $totalPages = max(1, (int)ceil($total / $perPage));
+    $page       = min(max(1, (int)($_GET['tpage'] ?? 1)), $totalPages);
+    $offset     = ($page - 1) * $perPage;
+
+    // only the columns the page shows, so the password column is never loaded
+    $stmt = $pdo->prepare("SELECT id, fname, lname, phone, email
+                           FROM users
+                           $sqlWhere
+                           ORDER BY $sort $dir
+                           LIMIT $perPage OFFSET $offset");
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll();
+} catch (PDOException $e) {
+    err_log($e->getMessage());
+    echo alertBox('danger', 'Could not load the teachers. Please try again.');
+    return;
+}
 
 // Current state of the page. makeUrl() builds every link from this,
 // and the edit/delete requests send it back so the page looks the same afterwards.

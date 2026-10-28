@@ -1,7 +1,6 @@
 <?php
 require_once("../public/initialize.php");
 require_once(DB_PATH);
-require_once(FUNCTIONS_PATH . DS . "DbFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "schoolFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "testFunctions.php");
@@ -9,43 +8,54 @@ require_once(FUNCTIONS_PATH . DS . "testFunctions.php");
 $self     = COMPONENTS_URL . 'manage_questions.php';
 $testsUrl = COMPONENTS_URL . 'manage_tests.php';
 
-// Everything belongs to the current school year
-$year = CurrentSchoolYear($pdo);
-if (!$year) {
-    echo alertBox('warning', 'No school year is running. Start one in School Years first.');
-    return;
-}
-
-// Only the teacher who made the test can open it
-$teacherId = CurrentUserId();
-if (!IsTeacher($pdo, $teacherId)) {
-    echo alertBox('warning', 'Only teachers can create tests.');
-    return;
-}
 $testId = (int)($_GET['test'] ?? 0);
-$test   = FindMyTest($pdo, $testId, $teacherId, $year['id']);
-if (!$test) {
-    echo alertBox('warning', 'Test not found.');
+$editId = (int)($_GET['edit'] ?? 0);
+
+try {
+    // Everything belongs to the current school year
+    $year = CurrentSchoolYear($pdo);
+    if (!$year) {
+        echo alertBox('warning', 'No school year is running. Start one in School Years first.');
+        return;
+    }
+
+    // Only the teacher who made the test can open it
+    $teacherId = CurrentUserId();
+    if (!IsTeacher($pdo, $teacherId)) {
+        echo alertBox('warning', 'Only teachers can create tests.');
+        return;
+    }
+    $test = FindMyTest($pdo, $testId, $teacherId, $year['id']);
+    if (!$test) {
+        echo alertBox('warning', 'Test not found.');
+        return;
+    }
+
+    $stmt = $pdo->prepare("SELECT * FROM subjects WHERE id = :subject");
+    $stmt->execute([':subject' => $test['subject_id']]);
+    $subject = $stmt->fetch() ?: null;
+
+    $stmt = $pdo->prepare("SELECT * FROM questions WHERE test_id = :test ORDER BY id");
+    $stmt->execute([':test' => $testId]);
+    $questions = $stmt->fetchAll();
+
+    // choices grouped by question
+    $choices = [];
+    $stmt = $pdo->prepare("SELECT * FROM choices
+                           WHERE question_id IN (SELECT id FROM questions WHERE test_id = :test)
+                           ORDER BY id");
+    $stmt->execute([':test' => $testId]);
+    foreach ($stmt->fetchAll() as $c) {
+        $choices[$c['question_id']][] = $c;
+    }
+} catch (PDOException $e) {
+    err_log($e->getMessage());
+    echo alertBox('danger', 'Could not load the questions. Please try again.');
     return;
-}
-
-$subject   = FindById($pdo, 'subjects', $test['subject_id']);
-$questions = FindWhere($pdo, 'questions', ['test_id' => $testId]);
-usort($questions, fn($a, $b) => $a['id'] <=> $b['id']);
-
-// choices grouped by question
-$choices = [];
-$stmt = $pdo->prepare("SELECT * FROM choices
-                       WHERE question_id IN (SELECT id FROM questions WHERE test_id = :test)
-                       ORDER BY id");
-$stmt->execute([':test' => $testId]);
-foreach ($stmt->fetchAll() as $c) {
-    $choices[$c['question_id']][] = $c;
 }
 
 $totalPoints = array_sum(array_column($questions, 'points'));
 $locked      = (bool)$test['is_published'];   // a published test can't be changed
-$editId      = (int)($_GET['edit'] ?? 0);
 
 // what the question form shows: empty for a new question, filled in while editing
 $form = ['text' => '', 'points' => 1, 'choices' => ['', '', '', ''], 'correct' => -1];

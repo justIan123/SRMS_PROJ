@@ -1,49 +1,70 @@
 <?php
 require_once("../public/initialize.php");
 require_once(DB_PATH);
-require_once(FUNCTIONS_PATH . DS . "DbFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "schoolFunctions.php");
 
-$self  = COMPONENTS_URL . 'manage_users.php';
-$table = 'users';
-// $admins = FindWhere($pdo, 'user_roles', ['role' => 1]);
-$isAdminExist = RecordExists($pdo, 'user_roles', 'role', 1);
-
-// Everything belongs to the current school year
-$year = CurrentSchoolYear($pdo);
-if (!$year) {
-    echo alertBox('warning', 'No school year is running. Start one in School Years first.');
-    return;
-}
-$where = [];
+$self = COMPONENTS_URL . 'manage_users.php';
 
 // ---- search ----
 $search = trim($_GET['search'] ?? '');
-$cols   = ['fname', 'lname', 'phone', 'email'];
 
-// ---- sort ----
+// ---- sort (only a key of $headers can ever reach the SQL) ----
 $headers = ['id' => 'ID', 'fname' => 'First name', 'lname' => 'Last name', 'phone' => 'Phone', 'username' => 'Username', 'email' => 'Email', 'roles' => 'Role'];
 $sort = array_key_exists($_GET['sort'] ?? '', $headers) ? $_GET['sort'] : 'id';
 $dir  = ($_GET['dir'] ?? '') === 'DESC' ? 'DESC' : 'ASC';
 $flip = $dir === 'ASC' ? 'DESC' : 'ASC';
 
-// ---- pagination ----
-$perPage    = (int)($_GET['PerPageLimit'] ?? 10);
-$total      = CountList($pdo, $table, $where, $cols, $search);
-$totalPages = max(1, ceil($total / $perPage));
-$page       = min(max(1, (int)($_GET['PageNum'] ?? 1)), $totalPages);
+$perPage = max(1, (int)($_GET['PerPageLimit'] ?? 10));
+$editId  = (int)($_GET['editId'] ?? 0);
 
-$extra = [
-    'roles' => "SELECT string_agg(r.role, ', ')
-                FROM user_roles ur
-                JOIN roles r ON r.role_id = ur.role
-                WHERE ur.user_id = users.id"
-];
+try {
+    // is there already an admin?
+    $stmt = $pdo->query("SELECT 1 FROM user_roles WHERE role = 1 LIMIT 1");
+    $isAdminExist = (bool)$stmt->fetchColumn();
 
-$rows   = ListRecords($pdo, $table, $where, $cols, $search, $perPage, ($page - 1) * $perPage, $sort, $dir, $extra);
+    // Everything belongs to the current school year
+    $year = CurrentSchoolYear($pdo);
+    if (!$year) {
+        echo alertBox('warning', 'No school year is running. Start one in School Years first.');
+        return;
+    }
 
-$editId = (int)($_GET['editId'] ?? 0);
+    // WHERE shared by the count query and the list query (no search = no WHERE)
+    $sqlWhere = '';
+    $params   = [];
+    if ($search !== '') {
+        $like     = '%' . $search . '%';
+        $sqlWhere = "WHERE (u.fname ILIKE :s1 OR u.lname ILIKE :s2 OR u.phone ILIKE :s3 OR u.email ILIKE :s4)";
+        $params   = [':s1' => $like, ':s2' => $like, ':s3' => $like, ':s4' => $like];
+    }
+
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM users u $sqlWhere");
+    $stmt->execute($params);
+    $total = (int)$stmt->fetchColumn();
+
+    $totalPages = max(1, (int)ceil($total / $perPage));
+    $page       = min(max(1, (int)($_GET['PageNum'] ?? 1)), $totalPages);
+    $offset     = ($page - 1) * $perPage;
+
+    // only the columns the page shows (the password column is never loaded),
+    // plus each user's roles as one text value ("admin, teacher")
+    $stmt = $pdo->prepare("SELECT u.id, u.fname, u.lname, u.phone, u.username, u.email,
+                                  (SELECT string_agg(r.role, ', ')
+                                   FROM user_roles ur
+                                   JOIN roles r ON r.role_id = ur.role
+                                   WHERE ur.user_id = u.id) AS roles
+                           FROM users u
+                           $sqlWhere
+                           ORDER BY $sort $dir
+                           LIMIT $perPage OFFSET $offset");
+    $stmt->execute($params);
+    $rows = $stmt->fetchAll();
+} catch (PDOException $e) {
+    // err_log($e->getMessage());
+    echo alertBox('danger', 'Could not load the users. Please try again.');
+    return;
+}
 
 // Current state of the page. makeUrl() builds every link from this,
 // and the edit/delete requests send it back so the page looks the same afterwards.
@@ -64,8 +85,8 @@ $state = [
     <!-- CREATE -->
     <form hx-post="<?= HANDLERS_URL . 'userProcess.php' ?>" class="mb-4 gap-2">
         <input type="hidden" name="action" value="create">
-        <input type="hidden" name="school_year_id" value="<?= $year = CurrentSchoolYear($pdo); ?>">
-        <div class="row mb-3">
+        <input type="hidden" name="school_year_id" value="<?= (int)$year['id'] ?>">
+        <div class="row mb-2">
             <div class="col">
                 <input name="fname" placeholder="First name" class="form-control" required>
             </div>
@@ -76,15 +97,21 @@ $state = [
                 <input name="phone" placeholder="Phone" class="form-control">
             </div>
         </div>
-        <div class="row mb-3">
+        <div class="row mb-2">
             <div class="col">
                 <input name="username" type="text" placeholder="Username" class="form-control">
             </div>
             <div class="col">
                 <input name="email" type="email" placeholder="Email" class="form-control" required>
             </div>
-            <div class="col d-flex justify-content-end">
-                <select class="form-select">
+            <div class="col">
+                <input name="password" type="password" placeholder="Password" class="form-control" required>
+            </div>
+        </div>
+        <div class="row mb-2">
+
+            <div class="col d-flex justify-content-start">
+                <select class="form-select" name="createAssignedRole">
                     <option value="2">Teacher</option>
                     <option value="3">Employee</option>
                 </select>

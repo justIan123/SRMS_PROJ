@@ -26,7 +26,7 @@ try{
     }
     
     if ($action === 'start') {
-        $pdo->exec("UPDATE school_years SET is_active = 0");          // only one can run at a time
+        $pdo->exec("UPDATE school_years SET is_active = '0'");        // only one can run at a time
         UpdateRecord($pdo, 'school_years', (int)$_POST['id'], ['is_active' => 1]);
         $message = renderAlert('School year started.', 'success');
     }

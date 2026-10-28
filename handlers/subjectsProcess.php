@@ -50,7 +50,7 @@ if ($year) {
             InsertRecord($pdo, 'teacher_subjects', [
                 'subject_id' => (int)$_POST['id'],
                 'teacher_id' => (int)$_POST['teacher_id'],
-            ]);
+            ], null);   // null = this pivot table has no id column to return
             $message = renderAlert('Teacher assigned', 'success');
         }
 
