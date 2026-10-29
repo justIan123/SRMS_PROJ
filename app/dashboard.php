@@ -106,8 +106,9 @@ require_once(INCLUDE_PATH . DS . "auth.php");
       <a href="#" class="mb-3 link-body-emphasis text-decoration-none fs-5 fw-semibold"><i class="bi bi-hexagon-half me-2"></i>SRMS</a>
       
       <!-- LINK LISTS -->
-       <?php if($isUserIsAdmin):?>
       <ul class="nav nav-pills flex-column mb-auto">
+        
+       <?php if($isUserIsAdmin):?>
         <li class="nav-item">
           <div class="nav-link btn text-start active"
             hx-get="<?= COMPONENTS_URL . 'dashboard_content.php' ?>"
@@ -180,33 +181,33 @@ require_once(INCLUDE_PATH . DS . "auth.php");
         <?php endif?>
 
         <?php if(!$isUserIsAdmin):?>
-        <li class="nav-item">
-          <div class="nav-link btn text-start"
-            hx-get="<?= COMPONENTS_URL . 'manage_questions.php' ?>"
-            hx-target="#main"
-            hx-swap="innerHTML"
-            onclick="setActive(this)">
-            <i class="bi bi-person"></i>My questions
-          </div>
-        </li>
-        <li class="nav-item">
-          <div class="nav-link btn text-start"
-            hx-get="<?= COMPONENTS_URL . 'manage_test.php' ?>"
-            hx-target="#main"
-            hx-swap="innerHTML"
-            onclick="setActive(this)">
-            <i class="bi bi-person"></i>My test
-          </div>
-        </li>
-        <li class="nav-item">
-          <div class="nav-link btn text-start"
-            hx-get="<?= COMPONENTS_URL . 'manage_tests.php' ?>"
-            hx-target="#main"
-            hx-swap="innerHTML"
-            onclick="setActive(this)">
-            <i class="bi bi-person"></i>My tests
-          </div>
-        </li>
+          <li class="nav-item">
+            <div class="nav-link btn text-start"
+              hx-get="<?= COMPONENTS_URL . 'manage_questions.php' ?>"
+              hx-target="#main"
+              hx-swap="innerHTML"
+              onclick="setActive(this)">
+              <i class="bi bi-person"></i>My questions
+            </div>
+          </li>
+          <li class="nav-item">
+            <div class="nav-link btn text-start"
+              hx-get="<?= COMPONENTS_URL . 'manage_test.php' ?>"
+              hx-target="#main"
+              hx-swap="innerHTML"
+              onclick="setActive(this)">
+              <i class="bi bi-person"></i>My test
+            </div>
+          </li>
+          <li class="nav-item">
+            <div class="nav-link btn text-start"
+              hx-get="<?= COMPONENTS_URL . 'manage_tests.php' ?>"
+              hx-target="#main"
+              hx-swap="innerHTML"
+              onclick="setActive(this)">
+              <i class="bi bi-person"></i>My tests
+            </div>
+          </li>
         <?php endif?>
 
         <li class="nav-item"><a class="nav-link" href="#"><i class="bi bi-graph-up me-2"></i>Reports</a></li>

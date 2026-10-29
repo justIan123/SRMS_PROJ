@@ -56,7 +56,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             $stmt = $pdo->prepare("SELECT role FROM user_roles WHERE user_id = :id");
             $stmt->execute([':id' => $user['id']]);
             $roles = array_map('intval', $stmt->fetchAll(PDO::FETCH_COLUMN));
-            alert(implode(", ", $roles));
             // New session id after login prevents session fixation
             session_regenerate_id(true);
 

@@ -26,8 +26,7 @@ $flip = $dir === 'ASC' ? 'DESC' : 'ASC';
 
 $perPage = max(1, (int)($_GET['PerPageLimit'] ?? 10));
 
-// ---- which student is being edited / getting a parent ----
-$editId   = (int)($_GET['edit'] ?? 0);
+// ---- which student is getting a parent ----
 $assignId = (int)($_GET['assign'] ?? 0);
 $gsearch  = trim($_GET['gsearch'] ?? '');
 
@@ -130,7 +129,6 @@ $state = [
     'PageNum'      => $page,
     'search'       => $search,
     'PerPageLimit' => $perPage,
-    'edit'         => $editId,
     'assign'       => $assignId,
     'gsearch'      => $gsearch,
     'gPageNum'     => $gPage,
@@ -189,15 +187,6 @@ $state = [
         </div>
     </div>
 
-    <!-- UPDATE form (only exists while editing) -->
-    <?php if ($editId): ?>
-        <form id="editForm" hx-post="<?= $handler ?>">
-            <input type="hidden" name="action" value="update">
-            <input type="hidden" name="id" value="<?= $editId ?>">
-            <?php hiddenFields($state); ?>
-        </form>
-    <?php endif; ?>
-
     <!-- STUDENT TABLE -->
     <table class="table align-middle">
         <tr>
@@ -217,59 +206,63 @@ $state = [
 
         <?php foreach ($rows as $r): ?>
             <?php
+            $formId      = 'editForm' . $r['id'];
             $parentName  = $r['guardian_name'] ?? 'No parent yet';
             $parentClass = $r['guardian_id'] ? '' : 'text-muted';
             $assignLabel = $r['guardian_id'] ? 'Change parent' : 'Assign parent';
             ?>
 
-            <?php if ($r['id'] == $editId): ?>
+            <!-- Row type 1: a normal row -->
+            <tr class="<?= $r['id'] == $assignId ? 'table-warning' : '' ?>">
+                <td><?= $r['id'] ?></td>
+                <td><?= htmlspecialchars($r['fname']) ?></td>
+                <td><?= htmlspecialchars($r['lname']) ?></td>
+                <td><?= htmlspecialchars($r['grade_level'] ?? '') ?></td>
+                <td class="<?= $parentClass ?>"><?= htmlspecialchars($parentName) ?></td>
+                <td class="text-nowrap">
+                    <!-- Edit only swaps the rows in the browser, no request is sent -->
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleEdit(this)">Edit</button>
 
-                <!-- Row type 1: this student is being edited -->
-                <tr>
-                    <td><?= $r['id'] ?></td>
-                    <td><input form="editForm" name="fname" class="form-control form-control-sm"
-                               value="<?= htmlspecialchars($r['fname']) ?>" required></td>
-                    <td><input form="editForm" name="lname" class="form-control form-control-sm"
-                               value="<?= htmlspecialchars($r['lname']) ?>" required></td>
-                    <td><input form="editForm" name="grade_level" class="form-control form-control-sm"
-                               value="<?= htmlspecialchars($r['grade_level'] ?? '') ?>"></td>
-                    <td class="<?= $parentClass ?>"><?= htmlspecialchars($parentName) ?></td>
-                    <td>
-                        <button form="editForm" class="btn btn-sm btn-success">Save</button>
-                        <a href="<?= makeUrl($self, $state, ['edit' => null]) ?>"
-                           class="btn btn-sm btn-secondary">Cancel</a>
-                    </td>
-                </tr>
+                    <?php if ($r['id'] == $assignId): ?>
+                        <a href="<?= makeUrl($self, $state, ['assign' => null, 'gsearch' => null, 'gPageNum' => null]) ?>"
+                           class="btn btn-sm btn-secondary">Done</a>
+                    <?php else: ?>
+                        <a href="<?= makeUrl($self, $state, ['assign' => $r['id'], 'gsearch' => null, 'gPageNum' => null]) ?>"
+                           class="btn btn-sm btn-outline-success"><?= $assignLabel ?></a>
+                    <?php endif; ?>
 
-            <?php else: ?>
+                    <button class="btn btn-sm btn-outline-danger"
+                            hx-post="<?= $handler ?>"
+                            hx-vals='<?= postValues($state, ['action' => 'delete', 'id' => $r['id']]) ?>'
+                            hx-confirm="Delete this student?">Delete</button>
+                </td>
+            </tr>
 
-                <!-- Row type 2: a normal row -->
-                <tr class="<?= $r['id'] == $assignId ? 'table-warning' : '' ?>">
-                    <td><?= $r['id'] ?></td>
-                    <td><?= htmlspecialchars($r['fname']) ?></td>
-                    <td><?= htmlspecialchars($r['lname']) ?></td>
-                    <td><?= htmlspecialchars($r['grade_level'] ?? '') ?></td>
-                    <td class="<?= $parentClass ?>"><?= htmlspecialchars($parentName) ?></td>
-                    <td class="text-nowrap">
-                        <a href="<?= makeUrl($self, $state, ['edit' => $r['id'], 'assign' => null]) ?>"
-                           class="btn btn-sm btn-outline-primary">Edit</a>
+            <!-- Row type 2: the edit row, hidden until Edit is pressed -->
+            <tr class="edit-row d-none">
+                <td>
+                    <?= $r['id'] ?>
+                    <!-- UPDATE form of this row (the inputs below belong to it through form="...") -->
+                    <form id="<?= $formId ?>" hx-post="<?= $handler ?>">
+                        <input type="hidden" name="action" value="update">
+                        <input type="hidden" name="id" value="<?= $r['id'] ?>">
+                        <?php hiddenFields($state); ?>
+                    </form>
+                </td>
+                <td><input form="<?= $formId ?>" name="fname" class="form-control form-control-sm"
+                           value="<?= htmlspecialchars($r['fname']) ?>" required></td>
+                <td><input form="<?= $formId ?>" name="lname" class="form-control form-control-sm"
+                           value="<?= htmlspecialchars($r['lname']) ?>" required></td>
+                <td><input form="<?= $formId ?>" name="grade_level" class="form-control form-control-sm"
+                           value="<?= htmlspecialchars($r['grade_level'] ?? '') ?>"></td>
+                <td class="<?= $parentClass ?>"><?= htmlspecialchars($parentName) ?></td>
+                <td class="text-nowrap">
+                    <button form="<?= $formId ?>" class="btn btn-sm btn-success">Save</button>
+                    <!-- Cancel swaps back and clears what was typed, no request is sent -->
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit(this)">Cancel</button>
+                </td>
+            </tr>
 
-                        <?php if ($r['id'] == $assignId): ?>
-                            <a href="<?= makeUrl($self, $state, ['assign' => null, 'gsearch' => null, 'gPageNum' => null]) ?>"
-                               class="btn btn-sm btn-secondary">Done</a>
-                        <?php else: ?>
-                            <a href="<?= makeUrl($self, $state, ['assign' => $r['id'], 'edit' => null, 'gsearch' => null, 'gPageNum' => null]) ?>"
-                               class="btn btn-sm btn-outline-success"><?= $assignLabel ?></a>
-                        <?php endif; ?>
-
-                        <button class="btn btn-sm btn-outline-danger"
-                                hx-post="<?= $handler ?>"
-                                hx-vals='<?= postValues($state, ['action' => 'delete', 'id' => $r['id']]) ?>'
-                                hx-confirm="Delete this student?">Delete</button>
-                    </td>
-                </tr>
-
-            <?php endif; ?>
         <?php endforeach; ?>
     </table>
 
@@ -342,5 +335,23 @@ $state = [
             <?php renderPagination(makeUrl($self, $state, []), $gPage, "gPageNum", $gTotalPages); ?>
         </div>
     <?php endif; ?>
+
+    <script>
+        // Edit and Cancel buttons: show one row, hide the other. No request is sent.
+        function toggleEdit(button) {
+            const row     = button.closest('tr');
+            const isEdit  = row.classList.contains('edit-row');
+            const otherRow = isEdit ? row.previousElementSibling : row.nextElementSibling;
+
+            // Cancel: put the inputs back to what the database has
+            if (isEdit) {
+                const input = row.querySelector('[form]');
+                if (input) input.form.reset();
+            }
+
+            row.classList.add('d-none');
+            otherRow.classList.remove('d-none');
+        }
+    </script>
 
 </div>

@@ -7,11 +7,9 @@ require_once(FUNCTIONS_PATH . DS . "schoolFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "testFunctions.php");
 
-$self     = COMPONENTS_URL . 'manage_questions.php';
 $testsUrl = COMPONENTS_URL . 'manage_tests.php';
 
 $testId = (int)($_GET['test'] ?? 0);
-$editId = (int)($_GET['edit'] ?? 0);
 
 try {
     // Everything belongs to the current school year
@@ -59,22 +57,25 @@ try {
 $totalPoints = array_sum(array_column($questions, 'points'));
 $locked      = (bool)$test['is_published'];   // a published test can't be changed
 
-// what the question form shows: empty for a new question, filled in while editing
-$form = ['text' => '', 'points' => 1, 'choices' => ['', '', '', ''], 'correct' => -1];
+// What each Edit button carries: the question as the form needs it (text, points, 4 choices, which one is correct).
+// The browser fills the form from this when Edit is pressed, so no request is sent.
+$editData = [];
 foreach ($questions as $q) {
-    if ($q['id'] == $editId) {
-        $form = ['text' => $q['question_text'], 'points' => $q['points'], 'choices' => ['', '', '', ''], 'correct' => -1];
-        foreach (array_slice($choices[$q['id']] ?? [], 0, 4) as $i => $c) {
-            $form['choices'][$i] = $c['choice_text'];
-            if ($c['is_correct']) {
-                $form['correct'] = $i;
-            }
+    $data = [
+        'id'      => $q['id'],
+        'text'    => $q['question_text'],
+        'points'  => (int)$q['points'],
+        'choices' => ['', '', '', ''],
+        'correct' => -1,
+    ];
+    foreach (array_slice($choices[$q['id']] ?? [], 0, 4) as $i => $c) {
+        $data['choices'][$i] = $c['choice_text'];
+        if ($c['is_correct']) {
+            $data['correct'] = $i;
         }
     }
+    $editData[$q['id']] = $data;
 }
-$isEditing = $editId && $form['text'] !== '';
-
-$state = ['test' => $testId];
 ?>
 
 <div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner">
@@ -98,42 +99,40 @@ $state = ['test' => $testId];
 
     <div id="message"><?= $message ?? '' ?></div>
 
-    <!-- QUESTION FORM (add, or edit when ?edit=ID) -->
+    <!-- QUESTION FORM (adds a question; the Edit buttons below turn it into an edit form) -->
     <?php if ($locked): ?>
         <div class="alert alert-info">This test is published. Unpublish it in My Tests to change its questions.</div>
     <?php else: ?>
-        <form hx-post="<?= HANDLERS_URL ?>questionsProcess.php" class="card card-body mb-4">
-            <h5><?= $isEditing ? 'Edit question' : 'Add a question' ?></h5>
-            <input type="hidden" name="action" value="<?= $isEditing ? 'update' : 'create' ?>">
+        <form id="questionForm" hx-post="<?= HANDLERS_URL ?>questionsProcess.php" class="card card-body mb-4">
+            <h5 id="questionFormTitle">Add a question</h5>
+            <input type="hidden" name="action" value="create">
             <input type="hidden" name="test" value="<?= $testId ?>">
-            <?php if ($isEditing): ?>
-                <input type="hidden" name="id" value="<?= $editId ?>">
-            <?php endif; ?>
+            <!-- disabled = not sent. It is switched on only while editing -->
+            <input type="hidden" name="id" value="" disabled>
 
             <div class="row g-2 mb-3">
                 <div class="col-md-10">
-                    <textarea name="question_text" class="form-control" rows="2" placeholder="Question" required><?= htmlspecialchars($form['text']) ?></textarea>
+                    <textarea name="question_text" class="form-control" rows="2" placeholder="Question" required></textarea>
                 </div>
                 <div class="col-md-2">
-                    <input name="points" type="number" min="1" max="100" class="form-control" value="<?= (int)$form['points'] ?>" title="Points">
+                    <input name="points" type="number" min="1" max="100" class="form-control" value="1" title="Points">
                 </div>
             </div>
 
             <p class="small text-muted mb-1">Fill in at least two choices and select the correct one.</p>
-            <?php foreach ($form['choices'] as $i => $choiceText): ?>
+            <?php for ($i = 0; $i < 4; $i++): ?>
                 <div class="input-group mb-2">
                     <div class="input-group-text">
-                        <input class="form-check-input mt-0" type="radio" name="correct" value="<?= $i ?>" <?= $form['correct'] === $i ? 'checked' : '' ?> required>
+                        <input class="form-check-input mt-0" type="radio" name="correct" value="<?= $i ?>" required>
                     </div>
-                    <input name="choice[<?= $i ?>]" class="form-control" placeholder="Choice <?= chr(65 + $i) ?>" value="<?= htmlspecialchars($choiceText) ?>" <?= $i < 2 ? 'required' : '' ?>>
+                    <input name="choice[<?= $i ?>]" class="form-control" placeholder="Choice <?= chr(65 + $i) ?>" <?= $i < 2 ? 'required' : '' ?>>
                 </div>
-            <?php endforeach; ?>
+            <?php endfor; ?>
 
             <div>
-                <button class="btn btn-primary"><?= $isEditing ? 'Save question' : 'Add question' ?></button>
-                <?php if ($isEditing): ?>
-                    <a href="<?= makeUrl($self, $state) ?>" class="btn btn-secondary">Cancel</a>
-                <?php endif; ?>
+                <button id="questionSubmit" class="btn btn-primary">Add question</button>
+                <!-- Cancel only resets the form in the browser, no request is sent -->
+                <button type="button" id="questionCancel" class="btn btn-secondary d-none" onclick="resetQuestionForm()">Cancel</button>
             </div>
         </form>
     <?php endif; ?>
@@ -144,7 +143,7 @@ $state = ['test' => $testId];
     <?php endif; ?>
 
     <?php foreach ($questions as $n => $q): ?>
-        <div class="card mb-3 <?= $q['id'] == $editId ? 'border-primary' : '' ?>">
+        <div class="card mb-3 question-card">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-start gap-2">
                     <h6 class="mb-2"><?= $n + 1 ?>. <?= nl2br(htmlspecialchars($q['question_text'])) ?></h6>
@@ -161,7 +160,10 @@ $state = ['test' => $testId];
                 </ul>
 
                 <?php if (!$locked): ?>
-                    <a href="<?= makeUrl($self, $state, ['edit' => $q['id']]) ?>" class="btn btn-sm btn-outline-primary">Edit</a>
+                    <!-- Edit fills the form above from data-question, no request is sent -->
+                    <button type="button" class="btn btn-sm btn-outline-primary"
+                            onclick="editQuestion(this)"
+                            data-question='<?= htmlspecialchars(json_encode($editData[$q['id']]), ENT_QUOTES) ?>'>Edit</button>
                     <button class="btn btn-sm btn-outline-danger"
                             hx-post="<?= HANDLERS_URL ?>questionsProcess.php"
                             hx-vals='<?= htmlspecialchars(json_encode(['action' => 'delete', 'test' => $testId, 'id' => $q['id']]), ENT_QUOTES) ?>'
@@ -170,5 +172,62 @@ $state = ['test' => $testId];
             </div>
         </div>
     <?php endforeach; ?>
+
+    <script>
+        // Edit: copy the question into the form at the top and switch it to "update" mode.
+        function editQuestion(button) {
+            const q    = JSON.parse(button.dataset.question);
+            const form = document.getElementById('questionForm');
+
+            form.querySelector('[name="action"]').value = 'update';
+
+            const idInput = form.querySelector('[name="id"]');
+            idInput.value    = q.id;
+            idInput.disabled = false;               // now it is sent with the form
+
+            form.querySelector('[name="question_text"]').value = q.text;
+            form.querySelector('[name="points"]').value = q.points;
+
+            for (let i = 0; i < 4; i++) {
+                form.querySelector('[name="choice[' + i + ']"]').value = q.choices[i];
+            }
+            form.querySelectorAll('[name="correct"]').forEach(function (radio, i) {
+                radio.checked = (i === q.correct);
+            });
+
+            document.getElementById('questionFormTitle').textContent = 'Edit question';
+            document.getElementById('questionSubmit').textContent    = 'Save question';
+            document.getElementById('questionCancel').classList.remove('d-none');
+
+            // highlight the question being edited
+            document.querySelectorAll('.question-card').forEach(function (card) {
+                card.classList.remove('border-primary');
+            });
+            button.closest('.question-card').classList.add('border-primary');
+
+            form.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            form.querySelector('[name="question_text"]').focus({ preventScroll: true });
+        }
+
+        // Cancel: back to an empty "add a question" form.
+        function resetQuestionForm() {
+            const form = document.getElementById('questionForm');
+
+            form.reset();                           // empty text and choices, points back to 1, no radio chosen
+            form.querySelector('[name="action"]').value = 'create';
+
+            const idInput = form.querySelector('[name="id"]');
+            idInput.value    = '';
+            idInput.disabled = true;                // not sent while adding
+
+            document.getElementById('questionFormTitle').textContent = 'Add a question';
+            document.getElementById('questionSubmit').textContent    = 'Add question';
+            document.getElementById('questionCancel').classList.add('d-none');
+
+            document.querySelectorAll('.question-card').forEach(function (card) {
+                card.classList.remove('border-primary');
+            });
+        }
+    </script>
 
 </div>

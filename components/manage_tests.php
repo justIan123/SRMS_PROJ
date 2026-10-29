@@ -21,7 +21,6 @@ $dir  = ($_GET['dir'] ?? 'DESC') === 'ASC' ? 'ASC' : 'DESC';
 $flip = $dir === 'ASC' ? 'DESC' : 'ASC';
 
 $perPage = 10;
-$editId  = (int)($_GET['edit'] ?? 0);
 
 try {
     // Everything belongs to the current school year
@@ -83,7 +82,7 @@ try {
 }
 
 // Current state of the page. makeUrl() builds every link from this,
-// and the edit/delete requests send it back so the page looks the same afterwards.
+// and the update/delete requests send it back so the page looks the same afterwards.
 $state = [
     'sort'    => $sort,
     'dir'     => $dir,
@@ -135,17 +134,6 @@ $state = [
         <?php endif; ?>
     </form>
 
-    <!-- UPDATE form (only exists while editing) -->
-    <?php if ($editId): ?>
-        <form id="editForm" hx-post="<?= HANDLERS_URL ?>testProcess.php">
-            <input type="hidden" name="action" value="update">
-            <input type="hidden" name="id" value="<?= $editId ?>">
-            <?php foreach ($state as $k => $v): ?>
-                <input type="hidden" name="<?= $k ?>" value="<?= htmlspecialchars($v) ?>">
-            <?php endforeach; ?>
-        </form>
-    <?php endif; ?>
-
     <!-- TABLE -->
     <table class="table align-middle">
         <tr>
@@ -160,61 +148,90 @@ $state = [
         <?php endif; ?>
 
         <?php foreach ($rows as $r): ?>
-            <?php if ($r['id'] == $editId): ?>
+            <?php $formId = 'editForm' . $r['id']; ?>
 
-                <tr>
-                    <td><input class="form-control form-control-sm" form="editForm" name="title" value="<?= htmlspecialchars($r['title']) ?>" required></td>
-                    <td>
-                        <select class="form-select form-select-sm" form="editForm" name="subject_id" required>
-                            <?php foreach ($subjects as $s): ?>
-                                <option value="<?= $s['id'] ?>" <?= $s['id'] == $r['subject_id'] ? 'selected' : '' ?>><?= htmlspecialchars($s['subject_name']) ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                    </td>
-                    <td><?= $r['question_count'] ?></td>
-                    <td><input class="form-control form-control-sm" form="editForm" name="time_limit" type="number" min="1" max="600" value="<?= htmlspecialchars($r['time_limit'] ?? '') ?>" placeholder="Minutes"></td>
-                    <td><?= $r['is_published'] ? 'Published' : 'Draft' ?></td>
-                    <td><?= htmlspecialchars(substr($r['created_at'], 0, 10)) ?></td>
-                    <td>
-                        <button form="editForm" class="btn btn-sm btn-success">Save</button>
-                        <a href="<?= makeUrl($self, $state) ?>" class="btn btn-sm btn-secondary">Cancel</a>
-                    </td>
-                </tr>
+            <!-- Row type 1: a normal row -->
+            <tr>
+                <td><?= htmlspecialchars($r['title']) ?></td>
+                <td><?= htmlspecialchars($r['subject_name'] ?? '') ?></td>
+                <td><?= $r['question_count'] ?></td>
+                <td><?= $r['time_limit'] ? (int)$r['time_limit'] . ' min' : 'No limit' ?></td>
+                <td>
+                    <?php if ($r['is_published']): ?>
+                        <span class="badge text-bg-success">Published</span>
+                    <?php else: ?>
+                        <span class="badge text-bg-secondary">Draft</span>
+                    <?php endif; ?>
+                </td>
+                <td><?= htmlspecialchars(substr($r['created_at'], 0, 10)) ?></td>
+                <td>
+                    <a href="<?= makeUrl(COMPONENTS_URL . 'manage_questions.php', [], ['test' => $r['id']]) ?>" class="btn btn-sm btn-primary">Questions</a>
+                    <!-- Edit only swaps the rows in the browser, no request is sent -->
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleEdit(this)">Edit</button>
+                    <button class="btn btn-sm btn-outline-secondary"
+                            hx-post="<?= HANDLERS_URL ?>testProcess.php"
+                            hx-vals='<?= htmlspecialchars(json_encode($state + ['action' => 'toggle', 'id' => $r['id']]), ENT_QUOTES) ?>'>
+                        <?= $r['is_published'] ? 'Unpublish' : 'Publish' ?>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger"
+                            hx-post="<?= HANDLERS_URL ?>testProcess.php"
+                            hx-vals='<?= htmlspecialchars(json_encode($state + ['action' => 'delete', 'id' => $r['id']]), ENT_QUOTES) ?>'
+                            hx-confirm="Delete this test and all its questions?">Delete</button>
+                </td>
+            </tr>
 
-            <?php else: ?>
+            <!-- Row type 2: the edit row, hidden until Edit is pressed -->
+            <tr class="edit-row d-none">
+                <td>
+                    <!-- UPDATE form of this row (the inputs below belong to it through form="...") -->
+                    <form id="<?= $formId ?>" hx-post="<?= HANDLERS_URL ?>testProcess.php">
+                        <input type="hidden" name="action" value="update">
+                        <input type="hidden" name="id" value="<?= $r['id'] ?>">
+                        <?php foreach ($state as $k => $v): ?>
+                            <input type="hidden" name="<?= $k ?>" value="<?= htmlspecialchars($v) ?>">
+                        <?php endforeach; ?>
+                    </form>
+                    <input class="form-control form-control-sm" form="<?= $formId ?>" name="title" value="<?= htmlspecialchars($r['title']) ?>" required>
+                </td>
+                <td>
+                    <select class="form-select form-select-sm" form="<?= $formId ?>" name="subject_id" required>
+                        <?php foreach ($subjects as $s): ?>
+                            <option value="<?= $s['id'] ?>" <?= $s['id'] == $r['subject_id'] ? 'selected' : '' ?>><?= htmlspecialchars($s['subject_name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </td>
+                <td><?= $r['question_count'] ?></td>
+                <td><input class="form-control form-control-sm" form="<?= $formId ?>" name="time_limit" type="number" min="1" max="600" value="<?= htmlspecialchars($r['time_limit'] ?? '') ?>" placeholder="Minutes"></td>
+                <td><?= $r['is_published'] ? 'Published' : 'Draft' ?></td>
+                <td><?= htmlspecialchars(substr($r['created_at'], 0, 10)) ?></td>
+                <td>
+                    <button form="<?= $formId ?>" class="btn btn-sm btn-success">Save</button>
+                    <!-- Cancel swaps back and clears what was typed, no request is sent -->
+                    <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit(this)">Cancel</button>
+                </td>
+            </tr>
 
-                <tr>
-                    <td><?= htmlspecialchars($r['title']) ?></td>
-                    <td><?= htmlspecialchars($r['subject_name'] ?? '') ?></td>
-                    <td><?= $r['question_count'] ?></td>
-                    <td><?= $r['time_limit'] ? (int)$r['time_limit'] . ' min' : 'No limit' ?></td>
-                    <td>
-                        <?php if ($r['is_published']): ?>
-                            <span class="badge text-bg-success">Published</span>
-                        <?php else: ?>
-                            <span class="badge text-bg-secondary">Draft</span>
-                        <?php endif; ?>
-                    </td>
-                    <td><?= htmlspecialchars(substr($r['created_at'], 0, 10)) ?></td>
-                    <td>
-                        <a href="<?= makeUrl(COMPONENTS_URL . 'manage_questions.php', [], ['test' => $r['id']]) ?>" class="btn btn-sm btn-primary">Questions</a>
-                        <a href="<?= makeUrl($self, $state, ['edit' => $r['id']]) ?>" class="btn btn-sm btn-outline-primary">Edit</a>
-                        <button class="btn btn-sm btn-outline-secondary"
-                                hx-post="<?= HANDLERS_URL ?>testProcess.php"
-                                hx-vals='<?= htmlspecialchars(json_encode($state + ['action' => 'toggle', 'id' => $r['id']]), ENT_QUOTES) ?>'>
-                            <?= $r['is_published'] ? 'Unpublish' : 'Publish' ?>
-                        </button>
-                        <button class="btn btn-sm btn-outline-danger"
-                                hx-post="<?= HANDLERS_URL ?>testProcess.php"
-                                hx-vals='<?= htmlspecialchars(json_encode($state + ['action' => 'delete', 'id' => $r['id']]), ENT_QUOTES) ?>'
-                                hx-confirm="Delete this test and all its questions?">Delete</button>
-                    </td>
-                </tr>
-
-            <?php endif; ?>
         <?php endforeach; ?>
     </table>
 
     <?php renderPagination(makeUrl($self, $state, ['page' => null]), $page, "page", $totalPages); ?>
+
+    <script>
+        // Edit and Cancel buttons: show one row, hide the other. No request is sent.
+        function toggleEdit(button) {
+            const row     = button.closest('tr');
+            const isEdit  = row.classList.contains('edit-row');
+            const otherRow = isEdit ? row.previousElementSibling : row.nextElementSibling;
+
+            // Cancel: put the inputs back to what the database has
+            if (isEdit) {
+                const input = row.querySelector('[form]');
+                if (input) input.form.reset();
+            }
+
+            row.classList.add('d-none');
+            otherRow.classList.remove('d-none');
+        }
+    </script>
 
 </div>

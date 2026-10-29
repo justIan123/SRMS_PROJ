@@ -22,7 +22,6 @@ try{
       
       // If a matching row is found, fetch() returns an array (truthy), making it true
       $isUserIsAdmin = $stmt->fetch() !== false;
-      alert($isUserIsAdmin);
 }catch(PDOException $e){
     
 }
@@ -38,7 +37,6 @@ try{
       
       // If a matching row is found, fetch() returns an array (truthy), making it true
       $isUserIsTeacher = $stmt->fetch() !== false;
-      alert($isUserIsTeacher);
 }catch(PDOException $e){
     
 }
