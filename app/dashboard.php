@@ -171,6 +171,36 @@ require_once(INCLUDE_PATH . DS . "auth.php");
 
         <li class="nav-item">
           <div class="nav-link btn text-start"
+            hx-get="<?= COMPONENTS_URL . 'manage_classRecord.php' ?>"
+            hx-target="#main"
+            hx-swap="innerHTML"
+            onclick="setActive(this)">
+            <i class="bi bi-database"></i>Class Record
+          </div>
+        </li>
+        
+        <li class="nav-item">
+          <div class="nav-link btn text-start"
+            hx-get="<?= COMPONENTS_URL . 'manage_grades.php' ?>"
+            hx-target="#main"
+            hx-swap="innerHTML"
+            onclick="setActive(this)">
+            <i class="bi bi-pencil-fill"></i>Enrollments
+          </div>
+        </li>
+
+        <li class="nav-item">
+          <div class="nav-link btn text-start"
+            hx-get="<?= COMPONENTS_URL . 'manage_enrollments.php' ?>"
+            hx-target="#main"
+            hx-swap="innerHTML"
+            onclick="setActive(this)">
+            <i class="bi bi-pencil-fill"></i>Enrollments
+          </div>
+        </li>
+
+        <li class="nav-item">
+          <div class="nav-link btn text-start"
             hx-get="<?= COMPONENTS_URL . 'manage_myAccount.php' ?>"
             hx-target="#main"
             hx-swap="innerHTML"
@@ -181,6 +211,24 @@ require_once(INCLUDE_PATH . DS . "auth.php");
         <?php endif?>
 
         <?php if(!$isUserIsAdmin):?>
+          <li class="nav-item">
+            <div class="nav-link btn text-start"
+              hx-get="<?= COMPONENTS_URL . 'manage_grades.php' ?>"
+              hx-target="#main"
+              hx-swap="innerHTML"
+              onclick="setActive(this)">
+              <i class="bi bi-person-vcard-fill"></i>Grades
+            </div>
+          </li>
+          <li class="nav-item">
+            <div class="nav-link btn text-start"
+              hx-get="<?= COMPONENTS_URL . 'manage_myStudents.php' ?>"
+              hx-target="#main"
+              hx-swap="innerHTML"
+              onclick="setActive(this)">
+              <i class="bi bi-database"></i>My Students
+            </div>
+          </li>
           <li class="nav-item">
             <div class="nav-link btn text-start"
               hx-get="<?= COMPONENTS_URL . 'manage_questions.php' ?>"
@@ -196,7 +244,7 @@ require_once(INCLUDE_PATH . DS . "auth.php");
               hx-target="#main"
               hx-swap="innerHTML"
               onclick="setActive(this)">
-              <i class="bi bi-person"></i>My test
+              <i class="bi bi-book-half"></i>My test
             </div>
           </li>
           <li class="nav-item">
@@ -205,7 +253,7 @@ require_once(INCLUDE_PATH . DS . "auth.php");
               hx-target="#main"
               hx-swap="innerHTML"
               onclick="setActive(this)">
-              <i class="bi bi-person"></i>My tests
+              <i class="bi bi-book-half"></i>My tests
             </div>
           </li>
         <?php endif?>
