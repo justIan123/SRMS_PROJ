@@ -1,7 +1,6 @@
 <?php
 //must include require_once(DB_PATH);
  
-
 session_start();
 
 if (!isset($_SESSION['user'])) {
@@ -9,34 +8,24 @@ if (!isset($_SESSION['user'])) {
     exit;
 }
 
+require_once(DB_PATH); // Replaces DB_PATH connection
+
 $isUserIsAdmin = false;
 $isUserIsTeacher = false;
-try{
-  $stmt = $pdo->prepare("
-          SELECT 1 
-          FROM public.user_roles 
-          WHERE user_id = :user_id AND role = 1 
-          LIMIT 1
-      ");
-      $stmt->execute(['user_id' => $_SESSION['user_id']]);
-      
-      // If a matching row is found, fetch() returns an array (truthy), making it true
-      $isUserIsAdmin = $stmt->fetch() !== false;
-}catch(PDOException $e){
-    
+
+try {
+    // Query Supabase for admin role (role = 1)
+    $adminRows = supabase_query('user_roles?select=role&user_id=eq.' . $_SESSION['user_id'] . '&role=eq.1&limit=1');
+    $isUserIsAdmin = !empty($adminRows);
+} catch (Exception $e) {
+    // Handle or log exception if needed
 }
 
-try{
-  $stmt = $pdo->prepare("
-          SELECT 1 
-          FROM public.user_roles 
-          WHERE user_id = :user_id AND role = 2 
-          LIMIT 1
-      ");
-      $stmt->execute(['user_id' => $_SESSION['user_id']]);
-      
-      // If a matching row is found, fetch() returns an array (truthy), making it true
-      $isUserIsTeacher = $stmt->fetch() !== false;
-}catch(PDOException $e){
-    
+try {
+    // Query Supabase for teacher/employee role (role = 2 based on your roles table)
+    $teacherRows = supabase_query('user_roles?select=role&user_id=eq.' . $_SESSION['user_id'] . '&role=eq.2&limit=1');
+    $isUserIsTeacher = !empty($teacherRows);
+} catch (Exception $e) {
+    // Handle or log exception if needed
 }
+?>

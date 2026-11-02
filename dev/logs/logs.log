@@ -97,3 +97,5 @@ DETAIL:  Key (user_role_id)=(3) already exists.
 DETAIL:  Key (email)=(joanaDim@gmail.com) already exists.
 [2026-10-28 02:23:51] SQLSTATE[23505]: Unique violation: 7 ERROR:  duplicate key value violates unique constraint "user_roles_pkey"
 DETAIL:  Key (user_role_id)=(4) already exists.
+[2026-11-02 13:55:20] SQLSTATE[42501]: Insufficient privilege: 7 ERROR:  Supabase refused the key. SUPABASE_KEY must be the service_role / secret key. (permission denied for function exec_sql)
+[2026-11-02 13:59:25] SQLSTATE[42501]: Insufficient privilege: 7 ERROR:  Supabase refused the key. SUPABASE_KEY must be the service_role / secret key. (permission denied for function exec_sql)
