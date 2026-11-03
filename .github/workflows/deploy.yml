@@ -19,4 +19,4 @@ jobs:
           server: ${{ secrets.ftpupload.net }}
           username: ${{ secrets.if0_43246125 }}
           password: ${{ secrets.W7fgm7VhaespX }}
-          server-dir: htdocs/
+          server-dir: srms-sr-wip.site.je/htdocs/
