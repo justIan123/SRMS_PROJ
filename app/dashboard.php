@@ -7,12 +7,29 @@ require_once(INCLUDE_PATH . DS . "auth.php");
 
 ?>
 
-
+<!-- https://getbootstrap.com/docs/5.3/examples/sidebars/ -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="light">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
   <title>SRMS</title>
+
+  <!-- Apply the saved (or system) theme before any CSS paints, so there's no light flash in dark mode -->
+  <script>
+    (function () {
+      var theme = null;
+      try { theme = localStorage.getItem('srms-theme'); } catch (e) {}
+      if (theme !== 'light' && theme !== 'dark') {
+        theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-bs-theme', theme);
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', theme === 'dark' ? '#212529' : '#ffffff');
+    })();
+  </script>
+
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- bootstrap icons CDN -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
@@ -31,22 +48,98 @@ require_once(INCLUDE_PATH . DS . "auth.php");
       display: flex;
     }
 
-    /* Sidebar collapse styling and animation with zero gaps */
-    #pushSidebar {
-      width: 260px;
-      min-width: 260px;
-      transition: all 0.3s ease-in-out;
-      overflow: hidden;
-      white-space: nowrap;
+    /* ---------- App shell ---------- */
+    .app-shell {
+      min-height: 100vh;
+      min-height: 100dvh; /* mobile browsers: ignore the collapsing address bar */
     }
 
-    #pushSidebar.collapsed {
-      width: 0 !important;
-      min-width: 0 !important;
-      padding: 0 !important;
-      margin: 0 !important;
-      border: none !important;
-      opacity: 0;
+    /* Lets the content column shrink so wide content can't push the layout sideways */
+    .app-content {
+      min-width: 0;
+    }
+
+    /* Keep sidebar icons evenly spaced */
+    #pushSidebar .nav-link > .bi {
+      margin-right: 0.5rem;
+    }
+
+    /* Bigger tap targets on touch screens (Android, iPad) */
+    @media (pointer: coarse) {
+      #pushSidebar .nav-link {
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+      }
+    }
+
+    /* ---------- Desktop + iPad landscape (>= 992px): push sidebar ---------- */
+    @media (min-width: 992px) {
+      .app-shell {
+        overflow: hidden;
+      }
+
+      /* Sidebar collapse styling and animation with zero gaps */
+      #pushSidebar {
+        width: 260px;
+        min-width: 260px;
+        transition: all 0.3s ease-in-out;
+        overflow: hidden;
+        white-space: nowrap;
+      }
+
+      #pushSidebar.collapsed {
+        width: 0 !important;
+        min-width: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        opacity: 0;
+      }
+
+      #sidebarBackdrop {
+        display: none;
+      }
+    }
+
+    /* ---------- Phones + iPad portrait (< 992px): slide-out drawer ---------- */
+    @media (max-width: 991.98px) {
+      #pushSidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: min(280px, 85vw);
+        z-index: 1045;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        white-space: normal;
+        transform: translateX(-100%);
+        visibility: hidden;
+        transition: transform 0.3s ease-in-out, visibility 0s linear 0.3s;
+      }
+
+      #pushSidebar.open {
+        transform: translateX(0);
+        visibility: visible;
+        box-shadow: 0 0 2rem rgba(0, 0, 0, 0.35);
+        transition: transform 0.3s ease-in-out, visibility 0s;
+      }
+
+      #sidebarBackdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 1040;
+        background: rgba(0, 0, 0, 0.5);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.3s ease-in-out, visibility 0s linear 0.3s;
+      }
+
+      #sidebarBackdrop.show {
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 0.3s ease-in-out, visibility 0s;
+      }
     }
 
     /* Main wrapper styling */
@@ -69,11 +162,17 @@ require_once(INCLUDE_PATH . DS . "auth.php");
 </head>
 <body>
   <!-- HEADER -->
-  <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom px-3">
+  <nav class="navbar navbar-expand-lg bg-body border-bottom px-3">
     <div class="container-fluid">
       <span class="badge bg-<?= $isUserIsAdmin ? 'success' : 'secondary' ?> me-3">
         <?= $isUserIsAdmin ? 'Admin' : 'User' ?>
       </span>
+
+      <!-- Dark mode toggle (right side on every screen size) -->
+      <button id="themeToggle" class="btn btn-outline-secondary btn-sm ms-auto ms-lg-0 me-2 me-lg-0 order-lg-last" type="button" aria-label="Switch to dark mode" title="Switch to dark mode">
+        <i id="themeIcon" class="bi bi-moon-stars-fill"></i>
+      </button>
+
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
@@ -101,8 +200,11 @@ require_once(INCLUDE_PATH . DS . "auth.php");
   </nav>
 
   <!-- NAVBAR & SIDEBAR -->
-  <div class="d-flex overflow-hidden" style="min-height: 100vh">
-    <nav id="pushSidebar" class="d-flex flex-column flex-shrink-0 bg-body border-end p-3" hx-indicator="#global-spinner, #main">
+  <div class="app-shell d-flex">
+    <!-- Dim overlay behind the drawer on phones / iPad portrait -->
+    <div id="sidebarBackdrop"></div>
+
+    <nav id="pushSidebar" class="d-flex flex-column flex-shrink-0 bg-body border-end p-3" hx-indicator="#global-spinner, #main" aria-label="Main navigation">
       <a href="#" class="mb-3 link-body-emphasis text-decoration-none fs-5 fw-semibold"><i class="bi bi-hexagon-half me-2"></i>SRMS</a>
       
       <!-- LINK LISTS -->
@@ -263,10 +365,10 @@ require_once(INCLUDE_PATH . DS . "auth.php");
       </ul>
     </nav>
 
-    <header class="container-fluid flex-grow-1 p-3" hx-indicator="#global-spinner, #main">
+    <header class="app-content container-fluid flex-grow-1 p-2 p-sm-3" hx-indicator="#global-spinner, #main">
       <div class="row mb-3">
         <div class="col-6 d-flex justify-content-start">
-          <button class="btn btn-outline-secondary" onclick="document.getElementById('pushSidebar').classList.toggle('collapsed')" aria-label="Toggle sidebar" aria-expanded="true">
+          <button id="sidebarToggle" class="btn btn-outline-secondary" type="button" onclick="toggleSidebar()" aria-label="Toggle sidebar" aria-controls="pushSidebar" aria-expanded="true">
               <i class="bi bi-list"></i>
           </button>
         </div>
@@ -298,12 +400,79 @@ require_once(INCLUDE_PATH . DS . "auth.php");
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
+    /* ---------- Sidebar: push on desktop, slide-out drawer on phones / iPad portrait ---------- */
+    const sidebar = document.getElementById('pushSidebar');
+    const sidebarBackdrop = document.getElementById('sidebarBackdrop');
+    const sidebarToggleBtn = document.getElementById('sidebarToggle');
+    const desktopQuery = window.matchMedia('(min-width: 992px)');
+
+    function syncSidebarState() {
+      const isDesktop = desktopQuery.matches;
+      const expanded = isDesktop
+        ? !sidebar.classList.contains('collapsed')
+        : sidebar.classList.contains('open');
+      sidebarToggleBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      sidebarBackdrop.classList.toggle('show', !isDesktop && expanded);
+    }
+
+    function toggleSidebar() {
+      sidebar.classList.toggle(desktopQuery.matches ? 'collapsed' : 'open');
+      syncSidebarState();
+    }
+
+    function closeMobileSidebar() {
+      sidebar.classList.remove('open');
+      syncSidebarState();
+    }
+
+    sidebarBackdrop.addEventListener('click', closeMobileSidebar);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeMobileSidebar();
+    });
+    // Rotating an iPad / resizing the window: drop the drawer so it never gets stuck open
+    desktopQuery.addEventListener('change', closeMobileSidebar);
+    syncSidebarState();
+
     function setActive(el) {
-      document.querySelectorAll('.nav-link').forEach(link => {
+      document.querySelectorAll('#pushSidebar .nav-link').forEach(link => {
         link.classList.remove('active');
       });
       el.classList.add('active');
+
+      // Close the drawer after picking a page on small screens
+      if (!desktopQuery.matches) closeMobileSidebar();
     }
+
+    /* ---------- Dark mode ---------- */
+    const themeToggleBtn = document.getElementById('themeToggle');
+    const themeIcon = document.getElementById('themeIcon');
+    const themeMeta = document.querySelector('meta[name="theme-color"]');
+    const systemDarkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+    function applyTheme(theme) {
+      const isDark = theme === 'dark';
+      document.documentElement.setAttribute('data-bs-theme', theme);
+      themeIcon.className = 'bi ' + (isDark ? 'bi-sun-fill' : 'bi-moon-stars-fill');
+      const label = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+      themeToggleBtn.setAttribute('aria-label', label);
+      themeToggleBtn.title = label;
+      if (themeMeta) themeMeta.setAttribute('content', isDark ? '#212529' : '#ffffff');
+    }
+
+    themeToggleBtn.addEventListener('click', function () {
+      const next = document.documentElement.getAttribute('data-bs-theme') === 'dark' ? 'light' : 'dark';
+      try { localStorage.setItem('srms-theme', next); } catch (e) {}
+      applyTheme(next);
+    });
+
+    // Follow the device's light/dark setting until the user picks one manually
+    systemDarkQuery.addEventListener('change', function (e) {
+      let saved = null;
+      try { saved = localStorage.getItem('srms-theme'); } catch (err) {}
+      if (!saved) applyTheme(e.matches ? 'dark' : 'light');
+    });
+
+    applyTheme(document.documentElement.getAttribute('data-bs-theme'));
   </script>
 </body>
 </html>

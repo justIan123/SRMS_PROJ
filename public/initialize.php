@@ -24,9 +24,9 @@ define("VENDOR_PATH", SITE_ROOT . DS . "vendor");
 
 // urlk paths (for browser links/forms)
 // for deployment
-define("BASE_URL", "http://localhost/1_SRMS"); 
+// define("BASE_URL", "http://localhost/1_SRMS"); 
 // for php desktop and hopweb
-// define('BASE_URL','http://' . $_SERVER['HTTP_HOST']); 
+define('BASE_URL','http://' . $_SERVER['HTTP_HOST']); 
 define("HANDLERS_URL", BASE_URL . "/handlers/");
 define("COMPONENTS_URL", BASE_URL . "/components/");
 define("APP_URL", BASE_URL . "/app/");
