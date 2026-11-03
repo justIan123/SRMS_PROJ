@@ -11,7 +11,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$self = COMPONENTS_URL . 'manage_mystudents.php';
+$self = COMPONENTS_URL . 'manage_myStudents.php';
 $myId = (int)($_SESSION['user_id'] ?? 0);   // decides which subjects are "mine" (admin = all)
 
 // ---- search ----
@@ -143,7 +143,7 @@ $state = [
 
             <?php if ($subjectId): ?>
                 <a class="btn btn-sm btn-outline-secondary ms-auto"
-                   href="<?= COMPONENTS_URL ?>manage_classrecord.php?subject_id=<?= $subjectId ?>">Open class record</a>
+                   href="<?= COMPONENTS_URL ?>manage_classRecord.php?subject_id=<?= $subjectId ?>">Open class record</a>
             <?php endif; ?>
         </div>
 

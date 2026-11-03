@@ -169,9 +169,9 @@ function GradeWeightsText(): string
 function GradeNav(string $active): string
 {
     $tabs = [
-        'mine'    => ['manage_mystudents.php',  'My students'],
+        'mine'    => ['manage_myStudents.php',  'My students'],
         'student' => ['manage_grades.php',      'By student'],
-        'subject' => ['manage_classrecord.php', 'By subject (class record)'],
+        'subject' => ['manage_classRecord.php', 'By subject (class record)'],
     ];
 
     $html = '<ul class="nav nav-pills mb-3">';

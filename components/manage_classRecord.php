@@ -11,7 +11,7 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-$self = COMPONENTS_URL . 'manage_classrecord.php';
+$self = COMPONENTS_URL . 'manage_classRecord.php';
 $myId = (int)($_SESSION['user_id'] ?? 0);   // decides which subjects are shown (admin = all)
 
 // ---- which subject is open ----

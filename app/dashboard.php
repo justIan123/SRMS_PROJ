@@ -7,7 +7,7 @@ require_once(INCLUDE_PATH . DS . "auth.php");
 
 ?>
 
-<!-- https://getbootstrap.com/docs/5.3/examples/sidebars/ -->
+<!-- https://github.com/justIan123/bootstrap-dashboard-template -->
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="light">
 <head>
@@ -361,7 +361,7 @@ require_once(INCLUDE_PATH . DS . "auth.php");
         <?php endif?>
 
         <li class="nav-item"><a class="nav-link" href="#"><i class="bi bi-graph-up me-2"></i>Reports</a></li>
-        <li class="nav-item"><a class="nav-link" href="logout_page"><i class="bi bi-door-closed me-2"></i>Logout</a></li>
+        <li class="nav-item"><a class="nav-link" href="<?= APP_URL . 'logout_page.php'?>"><i class="bi bi-door-closed me-2"></i>Logout</a></li>
       </ul>
     </nav>
 
