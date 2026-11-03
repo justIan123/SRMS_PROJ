@@ -20,6 +20,7 @@ $message = $_GET['message'] ?? '';
 <header class="navbar-light bg-light">
     <h1>Saint Roche SRMS</h1>
     <p>SRMS: Student record management System (WIP)</p>
+    <h1>SRMS TEST DEPLOY</h1>
 </header>
 
 <nav>
