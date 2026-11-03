@@ -1,6 +1,5 @@
 <?php
-// SUPABASE SUPPORTED BY PDO LIBRARY by
-// https://github.com/justIan123/supabase-http-pdo-bridge
+// C:\xampp\htdocs\1_SRMS\db_supabase.php
 //
 // Gives every page a working $pdo again, without the pgsql driver (InfinityFree has none).
 //
@@ -148,7 +147,9 @@ function supabase_pdo_exception($message, $sqlstate = 'HY000', $detail = '') {
 
     // PDOException::getCode() is the SQLSTATE string, like with a real PDO
     $p = new ReflectionProperty('Exception', 'code');
-    $p->setAccessible(true);
+    if (PHP_VERSION_ID < 80100) {
+        $p->setAccessible(true);   // needed before PHP 8.1, deprecated (and useless) from 8.1 on
+    }
     $p->setValue($e, $sqlstate);
 
     return $e;
@@ -544,5 +545,4 @@ class SupabasePdo extends PDO {
 
 $pdo = new SupabasePdo();
 $GLOBALS['pdo'] = $pdo;   // still $pdo even if this file is first included from inside a function
-
 ?>
