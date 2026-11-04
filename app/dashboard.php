@@ -287,7 +287,7 @@ require_once(INCLUDE_PATH . DS . "auth.php");
             hx-target="#main"
             hx-swap="innerHTML"
             onclick="setActive(this)">
-            <i class="bi bi-pencil-fill"></i>Enrollments
+            <i class="bi bi-pencil-fill"></i>Grades
           </div>
         </li>
 

@@ -20,10 +20,12 @@ try {
     $id       = (int)($_POST['id'] ?? 0);
     $fname    = trim($_POST['fname'] ?? '');
     $lname    = trim($_POST['lname'] ?? '');
+    $mname    = trim($_POST['mname'] ?? '');
     $phone    = trim($_POST['phone'] ?? '');
     $username = trim($_POST['username'] ?? '');
     $email    = trim($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
+    $is_active   = trim($_POST['status'] ?? 1);
     $roleId   = (int)($_POST['assignRole'] ?? 0);   // 0 = no role chosen
 
     // Is the chosen role a real one, and not admin? (admin can't be given here)
@@ -68,12 +70,13 @@ try {
             $message = renderAlert($error, 'danger');
         } else {
             // Postgres: lastInsertId() needs a sequence name, so ask the INSERT to return the id instead
-            $stmt = $pdo->prepare("INSERT INTO users (fname, lname, phone, username, email, password)
-                                   VALUES (:fname, :lname, :phone, :username, :email, :password)
+            $stmt = $pdo->prepare("INSERT INTO users (fname, lname, mname, phone, username, email, password)
+                                   VALUES (:fname, :lname, :mname, :phone, :username, :email, :password)
                                    RETURNING id");
             $stmt->execute([
                 ':fname'    => $fname,
                 ':lname'    => $lname,
+                ':mname'    => $mname,
                 ':phone'    => $phone ?: null,
                 ':username' => $username,
                 ':email'    => $email,
@@ -108,11 +111,12 @@ try {
         } else {
             // the email is not changed here
             $stmt = $pdo->prepare("UPDATE users
-                                   SET fname = :fname, lname = :lname, phone = :phone, username = :username
+                                   SET fname = :fname, lname = :lname, mname = :mname, phone = :phone, username = :username
                                    WHERE id = :id");
             $stmt->execute([
                 ':fname'    => $fname,
                 ':lname'    => $lname,
+                ':mname'    => $mname,
                 ':phone'    => $phone ?: null,
                 ':username' => $username,
                 ':id'       => $id,
@@ -157,6 +161,14 @@ try {
                 $message = renderAlert('User deleted.', 'success');
             }
         }
+    } elseif($action === 'status'){
+            $stmt = $pdo->prepare("UPDATE users
+                            SET is_active = :is_active
+                            WHERE id = :id");
+            $stmt->execute([
+                ':is_active'    => $is_active,
+                ':id'       => $id,
+            ]);
     }
 
     $pdo->commit();

@@ -7,12 +7,23 @@ require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "schoolFunctions.php");
 
 $self = COMPONENTS_URL . 'manage_users.php';
+$handler = HANDLERS_URL . 'userProcess.php';
 
 // ---- search ----
 $search = trim($_GET['search'] ?? '');
 
 // ---- sort (only a key of $headers can ever reach the SQL) ----
-$headers = ['id' => 'ID', 'fname' => 'First name', 'lname' => 'Last name', 'phone' => 'Phone', 'username' => 'Username', 'email' => 'Email', 'roles' => 'Role'];
+$headers = [
+        'id' => 'ID',
+        'fname' => 'First name',
+        'lname' => 'Last name',
+        'mname' => 'Middle name',
+        'phone' => 'Phone',
+        'username' => 'Username',
+        'email' => 'Email',
+        'roles' => 'Role',
+        'is_active' => 'Active'
+    ];
 $sort = array_key_exists($_GET['sort'] ?? '', $headers) ? $_GET['sort'] : 'id';
 $dir  = ($_GET['dir'] ?? '') === 'DESC' ? 'DESC' : 'ASC';
 $flip = $dir === 'ASC' ? 'DESC' : 'ASC';
@@ -53,7 +64,7 @@ try {
 
     // only the columns the page shows (the password column is never loaded),
     // plus each user's roles as one text value ("admin, teacher")
-    $stmt = $pdo->prepare("SELECT u.id, u.fname, u.lname, u.phone, u.username, u.email,
+    $stmt = $pdo->prepare("SELECT u.id, u.fname, u.lname, u.mname, u.phone, u.username, u.email, u.is_active,
                                   (SELECT string_agg(r.role, ', ')
                                    FROM user_roles ur
                                    JOIN roles r ON r.role_id = ur.role
@@ -189,22 +200,51 @@ $state = [
             <!-- Row type 1: a normal row -->
             <tr>
                 <td><?= $r['id'] ?></td>
-                <td><?= htmlspecialchars($r['fname'] ?? '') ?></td>
-                <td><?= htmlspecialchars($r['lname'] ?? '') ?></td>
-                <td><?= htmlspecialchars($r['phone'] ?? '') ?></td>
-                <td><?= htmlspecialchars($r['username'] ?? '') ?></td>
-                <td><?= htmlspecialchars($r['email'] ?? '') ?></td>
-                <td><?= htmlspecialchars($r['roles'] ?? '') ?></td>
+                <td><?= htmlspecialchars($r['fname'] ?? 'NONE') ?></td>
+                <td><?= htmlspecialchars($r['lname'] ?? 'NONE') ?></td>
+                <td><?= htmlspecialchars($r['mname'] ?? 'NONE') ?></td>
+                <td><?= htmlspecialchars($r['phone'] ?? 'NONE') ?></td>
+                <td><?= htmlspecialchars($r['username'] ?? 'NONE') ?></td>
+                <td><?= htmlspecialchars($r['email'] ?? 'NONE') ?></td>
+                <td><?= htmlspecialchars($r['roles'] ?? 'NONE') ?></td>
+                <td><?= htmlspecialchars($r['is_active'] ? 'ACTIVE' : 'SUSPENDED') ?></td>
                 <td>
                     <?php if (!$isAdmin): ?>
                         <!-- Edit only swaps the rows in the browser, no request is sent -->
                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleEdit(this)">Edit</button>
-                        <button class="btn btn-sm btn-outline-danger"
+                        <!-- <button class="btn btn-sm btn-outline-danger"
                                 hx-post="<?= HANDLERS_URL ?>userProcess.php"
                                 hx-vals='<?= htmlspecialchars(json_encode($state + ['action' => 'delete', 'id' => $r['id']]), ENT_QUOTES) ?>'
-                                hx-confirm="Delete this user?">Delete</button>
+                                hx-confirm="Delete this user?">Delete</button> -->
+                        <button class="btn btn-sm btn-outline-danger dropdown-toggle"
+                                type="button"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false">
+                            Status
+                        </button>
+    
+                        <ul class="dropdown-menu">
+                            <li>
+                                <button class="dropdown-item"
+                                        hx-post="<?= $handler ?>"
+                                        hx-vals='<?= postValues($state, ["action" => "status", "id" => $r["id"], "status" => 1]) ?>'
+                                        hx-confirm="Set this user to Active?">
+                                    Active
+                                </button>
+                            </li>
+    
+                            <li>
+                                <button class="dropdown-item"
+                                        hx-post="<?= $handler ?>"
+                                        hx-vals='<?= postValues($state, ["action" => "status", "id" => $r["id"], "status" => 0]) ?>'
+                                        hx-confirm="Set this user to Suspended?">
+                                    Suspend
+                                </button>
+                            </li>
+                        </ul>
+                    </td>
                     <?php endif; ?>
-                </td>
+
             </tr>
 
             <!-- Row type 2: the edit row, hidden until Edit is pressed (the admin can't be edited, so no edit row) -->
@@ -223,6 +263,7 @@ $state = [
                     </td>
                     <td><input class="form-control form-control-sm" form="<?= $formId ?>" name="fname" value="<?= htmlspecialchars($r['fname']) ?>" required></td>
                     <td><input class="form-control form-control-sm" form="<?= $formId ?>" name="lname" value="<?= htmlspecialchars($r['lname']) ?>" required></td>
+                    <td><input class="form-control form-control-sm" form="<?= $formId ?>" name="mname" value="<?= htmlspecialchars($r['mname']) ?>" required></td>
                     <td><input class="form-control form-control-sm" form="<?= $formId ?>" name="phone" value="<?= htmlspecialchars($r['phone'] ?? '') ?>"></td>
                     <td><input class="form-control form-control-sm" form="<?= $formId ?>" name="username" value="<?= htmlspecialchars($r['username'] ?? '') ?>"></td>
                     <td><?= htmlspecialchars($r['email'] ?? '') ?></td>

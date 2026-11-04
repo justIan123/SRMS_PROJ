@@ -20,6 +20,7 @@ try {
         $fname = trim($_POST['fname'] ?? '');
         $lname = trim($_POST['lname'] ?? '');
         $grade = trim($_POST['grade_level'] ?? '') ?: null;
+        $status = trim($_POST['status'] ?? '');
 
         if ($action === 'create') {
             if ($fname === '' || $lname === '') {
@@ -68,6 +69,21 @@ try {
             }
             $message = $stmt->rowCount()
                 ? renderAlert('Student deleted', 'success')
+                : renderAlert('Student not found', 'danger');
+        } elseif ($action === 'status') {
+
+            // the guardian is NOT touched here, only the student's own info
+            $stmt = $pdo->prepare("UPDATE students
+                                SET status = :status
+                                WHERE id = :id AND school_year_id = :year");
+            $stmt->execute([
+                ':status' => $status,
+                ':id'    => $id,
+                ':year'  => $year['id'],
+            ]);
+            $_POST['edit'] = 0;   // close the edit row
+            $message = $stmt->rowCount()
+                ? renderAlert('Student updated', 'success')
                 : renderAlert('Student not found', 'danger');
 
         } elseif ($action === 'assign') {

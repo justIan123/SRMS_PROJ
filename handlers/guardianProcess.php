@@ -19,19 +19,22 @@ try {
         $id    = (int)($_POST['id'] ?? 0);
         $fname = trim($_POST['fname'] ?? '');
         $lname = trim($_POST['lname'] ?? '');
+        $mname = trim($_POST['mname'] ?? '');
         $phone = trim($_POST['phone'] ?? '') ?: null;
         $email = trim($_POST['email'] ?? '') ?: null;
+        $is_active = (int)($_POST['status'] ?? 1);
 
         if ($action === 'create') {
             if ($fname === '' || $lname === '') {
                 $message = alertBox('danger', 'First name and last name are required.');
             } else {
-                $stmt = $pdo->prepare("INSERT INTO guardians (school_year_id, fname, lname, phone, email)
-                                       VALUES (:year, :fname, :lname, :phone, :email)");
+                $stmt = $pdo->prepare("INSERT INTO guardians (school_year_id, fname, lname, mname, phone, email)
+                                       VALUES (:year, :fname, :lname, :mname, :phone, :email)");
                 $stmt->execute([
                     ':year'  => $year['id'],
                     ':fname' => $fname,
                     ':lname' => $lname,
+                    ':mname' => $mname,
                     ':phone' => $phone,
                     ':email' => $email,
                 ]);
@@ -43,11 +46,12 @@ try {
                 $message = alertBox('danger', 'First name and last name are required.');
             } else {
                 $stmt = $pdo->prepare("UPDATE guardians
-                                       SET fname = :fname, lname = :lname, phone = :phone, email = :email
+                                       SET fname = :fname, lname = :lname, mname = :mname, phone = :phone, email = :email
                                        WHERE id = :id AND school_year_id = :year");
                 $stmt->execute([
                     ':fname' => $fname,
                     ':lname' => $lname,
+                    ':mname' => $mname,
                     ':phone' => $phone,
                     ':email' => $email,
                     ':id'    => $id,
@@ -72,6 +76,15 @@ try {
                     ? alertBox('success', 'Guardian deleted.')
                     : alertBox('danger', 'Guardian not found.');
             }
+        } elseif($action === 'status'){
+                $stmt = $pdo->prepare("UPDATE guardians
+                                       SET is_active = :is_active
+                                       WHERE id = :id AND school_year_id = :year");
+                $stmt->execute([
+                    ':is_active' => $is_active,
+                    ':id'    => $id,
+                    ':year'  => $year['id'],
+                ]);
         }
 
         $pdo->commit();

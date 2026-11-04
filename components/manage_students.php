@@ -19,6 +19,7 @@ $headers = [
     'lname'         => 'Last name',
     'grade_level'   => 'Grade',
     'guardian_name' => 'Parent / Guardian',
+    'status' => 'Status',
 ];
 $sort = array_key_exists($_GET['sort'] ?? '', $headers) ? $_GET['sort'] : 'id';
 $dir  = ($_GET['dir'] ?? '') === 'DESC' ? 'DESC' : 'ASC';
@@ -197,7 +198,7 @@ $state = [
                     </a>
                 </th>
             <?php endforeach; ?>
-            <th>Actions</th>
+            <th class="text-center">Actions</th>
         </tr>
 
         <?php if (!$rows): ?>
@@ -219,7 +220,8 @@ $state = [
                 <td><?= htmlspecialchars($r['lname']) ?></td>
                 <td><?= htmlspecialchars($r['grade_level'] ?? '') ?></td>
                 <td class="<?= $parentClass ?>"><?= htmlspecialchars($parentName) ?></td>
-                <td class="text-nowrap">
+                <td><?= htmlspecialchars($r['status'] ?? '') ?></td>
+                <td class="d-flex justify-content-center gap-1">
                     <!-- Edit only swaps the rows in the browser, no request is sent -->
                     <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleEdit(this)">Edit</button>
 
@@ -231,10 +233,52 @@ $state = [
                            class="btn btn-sm btn-outline-success"><?= $assignLabel ?></a>
                     <?php endif; ?>
 
-                    <button class="btn btn-sm btn-outline-danger"
-                            hx-post="<?= $handler ?>"
-                            hx-vals='<?= postValues($state, ['action' => 'delete', 'id' => $r['id']]) ?>'
-                            hx-confirm="Delete this student?">Delete</button>
+                    <!-- DROP DOWN STATUS -->
+
+                    <button class="btn btn-sm btn-outline-danger dropdown-toggle"
+                            type="button"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false">
+                        Status
+                    </button>
+
+                    <ul class="dropdown-menu">
+                        <li>
+                            <button class="dropdown-item"
+                                    hx-post="<?= $handler ?>"
+                                    hx-vals='<?= postValues($state, ["action" => "status", "id" => $r["id"], "status" => "ACTIVE"]) ?>'
+                                    hx-confirm="Set student to Active?">
+                                Active
+                            </button>
+                        </li>
+
+                        <li>
+                            <button class="dropdown-item"
+                                    hx-post="<?= $handler ?>"
+                                    hx-vals='<?= postValues($state, ["action" => "status", "id" => $r["id"], "status" => "DROPPED"]) ?>'
+                                    hx-confirm="Set student to Dropped?">
+                                Dropped
+                            </button>
+                        </li>
+
+                        <li>
+                            <button class="dropdown-item"
+                                    hx-post="<?= $handler ?>"
+                                    hx-vals='<?= postValues($state, ["action" => "status", "id" => $r["id"], "status" => "TRANSFERRED"]) ?>'
+                                    hx-confirm="Set student to Transferred?">
+                                Transferred
+                            </button>
+                        </li>
+
+                        <li>
+                            <button class="dropdown-item"
+                                    hx-post="<?= $handler ?>"
+                                    hx-vals='<?= postValues($state, ["action" => "status", "id" => $r["id"], "status" => "INACTIVE"]) ?>'
+                                    hx-confirm="Set student to Transferred?">
+                                Inactive
+                            </button>
+                        </li>
+                    </ul>
                 </td>
             </tr>
 

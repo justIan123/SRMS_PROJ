@@ -99,3 +99,4 @@ DETAIL:  Key (email)=(joanaDim@gmail.com) already exists.
 DETAIL:  Key (user_role_id)=(4) already exists.
 [2026-11-02 13:55:20] SQLSTATE[42501]: Insufficient privilege: 7 ERROR:  Supabase refused the key. SUPABASE_KEY must be the service_role / secret key. (permission denied for function exec_sql)
 [2026-11-02 13:59:25] SQLSTATE[42501]: Insufficient privilege: 7 ERROR:  Supabase refused the key. SUPABASE_KEY must be the service_role / secret key. (permission denied for function exec_sql)
+[2026-11-04 10:14:46] SQLSTATE[42601]: Syntax error: 7 ERROR:  syntax error at or near "SELECT"

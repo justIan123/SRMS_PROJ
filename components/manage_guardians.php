@@ -7,12 +7,22 @@ require_once(FUNCTIONS_PATH . DS . "schoolFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 
 $self = COMPONENTS_URL . 'manage_guardians.php';
+$handler = HANDLERS_URL . 'guardianProcess.php';
+
 
 // ---- search ----
 $search = trim($_GET['search'] ?? '');
 
 // ---- sort (only a key of $headers can ever reach the SQL) ----
-$headers = ['id' => 'ID', 'fname' => 'First name', 'lname' => 'Last name', 'phone' => 'Phone', 'email' => 'Email'];
+$headers = [
+        'id' => 'ID',
+        'fname' => 'First name',
+        'lname' => 'Last name',
+        'mname' => 'Middle name',
+        'phone' => 'Phone',
+        'email' => 'Email',
+        'is_active' => 'Active'
+    ];
 $sort = array_key_exists($_GET['sort'] ?? '', $headers) ? $_GET['sort'] : 'id';
 $dir  = ($_GET['dir'] ?? '') === 'DESC' ? 'DESC' : 'ASC';
 $flip = $dir === 'ASC' ? 'DESC' : 'ASC';
@@ -75,6 +85,7 @@ $state = [
         <input type="hidden" name="action" value="create">
         <input name="fname" placeholder="First name" class="form-control" required>
         <input name="lname" placeholder="Last name" class="form-control" required>
+        <input name="mname" placeholder="Middle name" class="form-control">
         <input name="phone" placeholder="Phone" class="form-control">
         <input name="email" type="email" placeholder="Email" class="form-control">
         <button class="btn btn-primary">Create</button>
@@ -112,15 +123,46 @@ $state = [
                 <td><?= $r['id'] ?></td>
                 <td><?= htmlspecialchars($r['fname']) ?></td>
                 <td><?= htmlspecialchars($r['lname']) ?></td>
+                <td><?= htmlspecialchars($r['mname']) ?></td>
                 <td><?= htmlspecialchars($r['phone'] ?? '') ?></td>
                 <td><?= htmlspecialchars($r['email'] ?? '') ?></td>
+                <td><?= htmlspecialchars($r['is_active'] ? 'ACTIVE' : 'INACTIVE') ?></td>
                 <td>
                     <!-- Edit only swaps the rows in the browser, no request is sent -->
                     <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleEdit(this)">Edit</button>
-                    <button class="btn btn-sm btn-outline-danger"
+                    <!-- <button class="btn btn-sm btn-outline-danger"
                             hx-post="<?= HANDLERS_URL ?>guardianProcess.php"
                             hx-vals='<?= htmlspecialchars(json_encode($state + ['action' => 'delete', 'id' => $r['id']]), ENT_QUOTES) ?>'
-                            hx-confirm="Delete this guardian?">Delete</button>
+                            hx-confirm="Delete this guardian?">Delete</button> -->
+
+                    <!-- DROP DOWN STATUS -->
+
+                    <button class="btn btn-sm btn-outline-danger dropdown-toggle"
+                            type="button"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false">
+                        Status
+                    </button>
+
+                    <ul class="dropdown-menu">
+                        <li>
+                            <button class="dropdown-item"
+                                    hx-post="<?= $handler ?>"
+                                    hx-vals='<?= postValues($state, ["action" => "status", "id" => $r["id"], "status" => 1]) ?>'
+                                    hx-confirm="Set Guardian to Active?">
+                                Active
+                            </button>
+                        </li>
+
+                        <li>
+                            <button class="dropdown-item"
+                                    hx-post="<?= $handler ?>"
+                                    hx-vals='<?= postValues($state, ["action" => "status", "id" => $r["id"], "status" => 0]) ?>'
+                                    hx-confirm="Set Guardian to Inactive?">
+                                Inactive
+                            </button>
+                        </li>
+                    </ul>
                 </td>
             </tr>
 
@@ -139,6 +181,7 @@ $state = [
                 </td>
                 <td><input form="<?= $formId ?>" name="fname" value="<?= htmlspecialchars($r['fname']) ?>" required></td>
                 <td><input form="<?= $formId ?>" name="lname" value="<?= htmlspecialchars($r['lname']) ?>" required></td>
+                <td><input form="<?= $formId ?>" name="mname" value="<?= htmlspecialchars($r['mname']) ?>" required></td>
                 <td><input form="<?= $formId ?>" name="phone" value="<?= htmlspecialchars($r['phone'] ?? '') ?>"></td>
                 <td><input form="<?= $formId ?>" name="email" value="<?= htmlspecialchars($r['email'] ?? '') ?>"></td>
                 <td>
