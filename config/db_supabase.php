@@ -29,6 +29,98 @@ function supabase_env($name) {
     return ($v !== false && $v !== '') ? $v : '';
 }
 
+/**
+ * The ways cURL can be given a certificate bundle (cacert.pem) to trust Supabase's HTTPS,
+ * in the order they are tried. Returns a list of ['type' => 'file'|'path'|'default', 'value' => ...].
+ *
+ * Why: on some setups (HopWeb on Android, phpdesktop) php.ini points cURL at a bundle that does not
+ * exist or can't be read, and every request fails with "error adding trust anchors" /
+ * "error setting certificate file". Certificate checking stays ON in every case.
+ *
+ *   1. SUPABASE_CA_BUNDLE in .env (a full path), then cacert.pem next to this file or one folder up
+ *   2. cURL's own default (what php.ini says): this is what works on InfinityFree, so it comes
+ *      right after your own cacert.pem and is tried before anything below
+ *   3. cacert.pem next to php.exe (phpdesktop), the system's bundle, then Android's certificate folder
+ *
+ * A way is only moved past when it fails with a certificate-file/verification error.
+ */
+function supabase_ca_attempts() {
+    static $list = null;
+    if ($list !== null) {
+        return $list;
+    }
+
+    // @: open_basedir makes is_file() warn about paths outside the site
+    $usable = function ($f) {
+        return @is_file($f) && @is_readable($f) && @filesize($f) > 0;
+    };
+
+    $explicit = [];
+    $env = supabase_env('SUPABASE_CA_BUNDLE');
+    if ($env !== '') {
+        $explicit[] = $env;
+    }
+    $explicit[] = __DIR__ . '/cacert.pem';
+    $explicit[] = dirname(__DIR__) . '/cacert.pem';
+
+    $fallback = [];
+    foreach (['curl.cainfo', 'openssl.cafile'] as $ini) {
+        $v = ini_get($ini);
+        if ($v) {
+            $fallback[] = $v;
+        }
+    }
+    if (defined('PHP_BINARY') && PHP_BINARY !== '') {
+        $fallback[] = dirname(PHP_BINARY) . '/cacert.pem';
+    }
+    $fallback = array_merge($fallback, [
+        '/etc/ssl/certs/ca-certificates.crt',
+        '/etc/pki/tls/certs/ca-bundle.crt',
+        '/etc/ssl/cert.pem',
+        '/data/data/com.termux/files/usr/etc/tls/cert.pem',
+    ]);
+
+    $list = [];
+    $seen = [];
+    $add  = function ($type, $value) use (&$list, &$seen) {
+        if (!isset($seen[$type . '|' . $value])) {
+            $seen[$type . '|' . $value] = true;
+            $list[] = ['type' => $type, 'value' => $value];
+        }
+    };
+
+    foreach ($explicit as $f) {
+        if ($usable($f)) {
+            $add('file', $f);
+        }
+    }
+    $add('default', '');
+    foreach ($fallback as $f) {
+        if ($usable($f)) {
+            $add('file', $f);
+        }
+    }
+    foreach (['/apex/com.android.conscrypt/cacerts', '/system/etc/security/cacerts'] as $dir) {
+        if (@is_dir($dir) && @is_readable($dir)) {
+            $add('path', $dir);
+        }
+    }
+    return $list;
+}
+
+function supabase_ca_describe($attempt) {
+    if ($attempt['type'] === 'default') {
+        return 'cURL default';
+    }
+    return ($attempt['type'] === 'path' ? 'folder ' : 'file ') . $attempt['value'];
+}
+
+/** Is this cURL failure about the certificate bundle / verification (so another bundle may help)? */
+function supabase_is_ca_error($errno, $message) {
+    return in_array($errno, [58, 60, 77], true)
+        || (bool)preg_match('/trust anchors|certificate file|certificate bundle|CA cert|cacert|certificate problem|SSL certificate/i', (string)$message);
+}
+
 if (!defined('SUPABASE_URL')) {
     define('SUPABASE_URL', rtrim(trim((string)supabase_env('SUPABASE_URL')), '/'));
 }
@@ -46,19 +138,15 @@ if (!defined('SUPABASE_DEBUG')) {
  * @return array ['code' => HTTP status (0 = no answer), 'body' => raw text, 'error' => cURL/config error or '']
  */
 function supabase_http($method, $endpoint, $payload = null, $headers = []) {
-    static $ch = null;   // one handle per request, so the HTTPS connection is reused
+    static $ch     = null;   // one handle per request, so the HTTPS connection is reused
+    static $chosen = null;   // the certificate setting that worked, kept for the rest of the request
 
     if (SUPABASE_URL === '' || SUPABASE_KEY === '') {
         return ['code' => 0, 'body' => '', 'error' => 'SUPABASE_URL / SUPABASE_KEY are empty. Check .env and bootstrap.php.'];
     }
 
-    $url = SUPABASE_URL . '/rest/v1/' . ltrim($endpoint, '/');
-
-    if ($ch === null) {
-        $ch = curl_init();
-    } else {
-        curl_reset($ch);
-    }
+    $url    = SUPABASE_URL . '/rest/v1/' . ltrim($endpoint, '/');
+    $method = strtoupper($method);
 
     $request_headers = [
         'apikey: ' . SUPABASE_KEY,
@@ -71,29 +159,63 @@ function supabase_http($method, $endpoint, $payload = null, $headers = []) {
     }
     $request_headers = array_merge($request_headers, $headers);
 
-    $method = strtoupper($method);
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, $request_headers);
-
+    $json = null;
     if ($payload !== null && in_array($method, ['POST', 'PATCH', 'PUT'], true)) {
         $json = is_string($payload) ? $payload : json_encode($payload);
         if ($json === false) {
             return ['code' => 0, 'body' => '', 'error' => 'Could not encode the data as JSON (invalid UTF-8?): ' . json_last_error_msg()];
         }
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
     }
 
-    $body  = curl_exec($ch);
-    $error = ($body === false) ? curl_error($ch) : '';
+    $attempts = $chosen !== null ? [$chosen] : supabase_ca_attempts();
+    $tried    = [];
+    $body     = false;
+
+    foreach ($attempts as $attempt) {
+        if ($ch === null) {
+            $ch = curl_init();
+        } else {
+            curl_reset($ch);
+        }
+
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $request_headers);
+        if ($json !== null) {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $json);
+        }
+        if ($attempt['type'] === 'file') {
+            curl_setopt($ch, CURLOPT_CAINFO, $attempt['value']);
+        } elseif ($attempt['type'] === 'path') {
+            curl_setopt($ch, CURLOPT_CAPATH, $attempt['value']);
+        }
+
+        $body = curl_exec($ch);
+        if ($body !== false) {
+            $chosen = $attempt;
+            $GLOBALS['supabase_ca_chosen'] = $attempt;
+            break;
+        }
+
+        $errno   = curl_errno($ch);
+        $message = curl_error($ch);
+        $tried[] = supabase_ca_describe($attempt) . ': ' . $message;
+        if (!supabase_is_ca_error($errno, $message)) {
+            break;   // not a certificate problem (no network, timeout, ...): another bundle won't help
+        }
+    }
+
+    if ($body === false) {
+        return ['code' => 0, 'body' => '', 'error' => implode('  ||  ', $tried)];
+    }
 
     return [
         'code'  => (int)curl_getinfo($ch, CURLINFO_HTTP_CODE),
-        'body'  => ($body === false) ? '' : $body,
-        'error' => $error,
+        'body'  => $body,
+        'error' => '',
     ];
 }
 
@@ -396,7 +518,12 @@ function supabase_run_sql($sql, $returnsRows) {
     $r = supabase_http('POST', 'rpc/exec_sql', ['query' => $sql, 'returns_rows' => (bool)$returnsRows]);
 
     if ($r['error'] !== '') {
-        throw supabase_pdo_exception('Could not reach Supabase: ' . $r['error'], '08006');
+        $hint = '';
+        if (preg_match('/trust anchors|certificate file|SSL certificate|certificate problem|CA cert|cacert/i', $r['error'])) {
+            $hint = ' | The HTTPS certificate bundle is missing or unreadable. Download https://curl.se/ca/cacert.pem'
+                  . ' and save it as cacert.pem in ' . __DIR__ . ' (or set SUPABASE_CA_BUNDLE in .env to its full path).';
+        }
+        throw supabase_pdo_exception('Could not reach Supabase: ' . $r['error'] . $hint, '08006');
     }
 
     $data = json_decode($r['body'], true);
