@@ -8,19 +8,27 @@ require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 require_once(FUNCTIONS_PATH . DS . "testFunctions.php");
 
 $self = COMPONENTS_URL . 'manage_tests.php';
+$handler = HANDLERS_URL . 'testProcess.php';
 
 // ---- search + subject filter ----
 $search        = trim($_GET['search'] ?? '');
 $subjectFilter = (int)($_GET['subject'] ?? 0);
 
-// ---- sort, newest first unless told otherwise (only a key of $headers can ever reach the SQL) ----
-$headers = ['title' => 'Title', 'subject_name' => 'Subject', 'question_count' => 'Questions',
-            'time_limit' => 'Time', 'is_published' => 'Status', 'created_at' => 'Created'];
+// ---- sort (only a key of $headers can ever reach the SQL) ----
+$headers = [
+    'title'          => 'Title',
+    'subject_name'   => 'Subject',
+    'question_count' => 'Questions',
+    'time_limit'     => 'Time',
+    'is_published'   => 'Status',
+    'created_at'     => 'Created'
+];
 $sort = array_key_exists($_GET['sort'] ?? '', $headers) ? $_GET['sort'] : 'created_at';
-$dir  = ($_GET['dir'] ?? 'DESC') === 'ASC' ? 'ASC' : 'DESC';
+$dir  = ($_GET['dir'] ?? '') === 'ASC' ? 'ASC' : 'DESC';
 $flip = $dir === 'ASC' ? 'DESC' : 'ASC';
 
-$perPage = 10;
+// ---- pagination ----
+$perPage = max(1, (int)($_GET['PerPageLimit'] ?? 10));
 
 try {
     // Everything belongs to the current school year
@@ -36,10 +44,11 @@ try {
         echo alertBox('warning', 'Only teachers can create tests.');
         return;
     }
+
     $subjects   = TeacherSubjects($pdo, $teacherId, $year['id']);
     $subjectIds = array_map('intval', array_column($subjects, 'id'));
 
-    // a filter on a subject that is not theirs is ignored
+    // A filter on a subject that is not theirs is ignored
     if (!in_array($subjectFilter, $subjectIds, true)) {
         $subjectFilter = 0;
     }
@@ -47,15 +56,18 @@ try {
     // WHERE shared by the count query and the list query
     $sqlWhere = "WHERE t.school_year_id = :year AND t.teacher_id = :teacher";
     $params   = [':year' => $year['id'], ':teacher' => $teacherId];
+
     if ($subjectFilter) {
         $sqlWhere .= " AND t.subject_id = :subject";
         $params[':subject'] = $subjectFilter;
     }
+
     if ($search !== '') {
         $sqlWhere .= " AND t.title ILIKE :s1";
         $params[':s1'] = '%' . $search . '%';
     }
 
+    // How many rows match (for the pagination)
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM tests t $sqlWhere");
     $stmt->execute($params);
     $total = (int)$stmt->fetchColumn();
@@ -64,7 +76,7 @@ try {
     $page       = min(max(1, (int)($_GET['page'] ?? 1)), $totalPages);
     $offset     = ($page - 1) * $perPage;
 
-    // subject name and number of questions are worked out per test
+    // The subject name and number of questions are worked out per test
     $stmt = $pdo->prepare("SELECT t.*,
                                   s.subject_name,
                                   (SELECT COUNT(*) FROM questions q WHERE q.test_id = t.id) AS question_count
@@ -82,13 +94,14 @@ try {
 }
 
 // Current state of the page. makeUrl() builds every link from this,
-// and the update/delete requests send it back so the page looks the same afterwards.
+// and update/status requests send it back so the page looks the same afterwards.
 $state = [
-    'sort'    => $sort,
-    'dir'     => $dir,
-    'search'  => $search,
-    'subject' => $subjectFilter,
-    'page'    => $page,
+    'sort'         => $sort,
+    'dir'          => $dir,
+    'search'       => $search,
+    'subject'      => $subjectFilter,
+    'PerPageLimit' => $perPage,
+    'page'         => $page,
 ];
 ?>
 
@@ -103,7 +116,7 @@ $state = [
             You have no subjects for <?= htmlspecialchars($year['name']) ?> yet. Ask an admin to assign subjects to you.
         </div>
     <?php else: ?>
-        <form hx-post="<?= HANDLERS_URL ?>testProcess.php" class="mb-4 d-flex gap-2">
+        <form hx-post="<?= $handler ?>" class="mb-4 d-flex gap-2">
             <input type="hidden" name="action" value="create">
             <input name="title" placeholder="Test title" class="form-control" required>
             <select name="subject_id" class="form-select w-auto" required>
@@ -117,28 +130,52 @@ $state = [
         </form>
     <?php endif; ?>
 
-    <!-- SEARCH -->
-    <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2">
-        <input type="hidden" name="sort" value="<?= $sort ?>">
-        <input type="hidden" name="dir" value="<?= $dir ?>">
-        <input type="text" name="search" class="form-control w-auto" value="<?= htmlspecialchars($search) ?>" placeholder="Search title...">
-        <select name="subject" class="form-select w-auto">
-            <option value="0">All subjects</option>
-            <?php foreach ($subjects as $s): ?>
-                <option value="<?= $s['id'] ?>" <?= $s['id'] == $subjectFilter ? 'selected' : '' ?>><?= htmlspecialchars($s['subject_name']) ?></option>
-            <?php endforeach; ?>
-        </select>
-        <button class="btn btn-outline-primary">Search</button>
-        <?php if ($search !== '' || $subjectFilter): ?>
-            <a href="<?= makeUrl($self, $state, ['search' => '', 'subject' => null, 'page' => null]) ?>" class="btn btn-outline-secondary">Clear</a>
-        <?php endif; ?>
-    </form>
+    <!-- SEARCH + ROW LIMIT -->
+    <div class="row">
+        <div class="col-6">
+            <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2">
+                <?php hiddenFields($state, ['search', 'subject', 'page']); ?>
+                <input type="text" name="search" class="form-control w-auto"
+                       value="<?= htmlspecialchars($search) ?>" placeholder="Search title...">
+                <select name="subject" class="form-select w-auto">
+                    <option value="0">All subjects</option>
+                    <?php foreach ($subjects as $s): ?>
+                        <option value="<?= $s['id'] ?>" <?= $s['id'] == $subjectFilter ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($s['subject_name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <button class="btn btn-outline-primary">Search</button>
+                <?php if ($search !== '' || $subjectFilter): ?>
+                    <a href="<?= makeUrl($self, $state, ['search' => '', 'subject' => null, 'page' => null]) ?>"
+                       class="btn btn-outline-secondary">Clear</a>
+                <?php endif; ?>
+            </form>
+        </div>
+
+        <div class="col-6 d-flex justify-content-end">
+            <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2 align-items-start">
+                <?php hiddenFields($state, ['PerPageLimit', 'page']); ?>
+                <div class="form-floating">
+                    <input type="number" name="PerPageLimit" class="form-control"
+                           value="<?= htmlspecialchars((string)$perPage) ?>"
+                           id="limitRows" placeholder="Rows" min="1">
+                    <label for="limitRows">No. of rows</label>
+                </div>
+                <button class="btn btn-outline-primary">Set</button>
+            </form>
+        </div>
+    </div>
 
     <!-- TABLE -->
     <table class="table align-middle">
         <tr>
             <?php foreach ($headers as $col => $label): ?>
-                <th><a href="<?= makeUrl($self, $state, ['sort' => $col, 'dir' => $flip, 'page' => null]) ?>"><?= $label ?></a></th>
+                <th>
+                    <a href="<?= makeUrl($self, $state, ['sort' => $col, 'dir' => $flip, 'page' => null]) ?>">
+                        <?= $label ?>
+                    </a>
+                </th>
             <?php endforeach; ?>
             <th>Actions</th>
         </tr>
@@ -154,7 +191,7 @@ $state = [
             <tr>
                 <td><?= htmlspecialchars($r['title']) ?></td>
                 <td><?= htmlspecialchars($r['subject_name'] ?? '') ?></td>
-                <td><?= $r['question_count'] ?></td>
+                <td><?= (int)$r['question_count'] ?></td>
                 <td><?= $r['time_limit'] ? (int)$r['time_limit'] . ' min' : 'No limit' ?></td>
                 <td>
                     <?php if ($r['is_published']): ?>
@@ -165,17 +202,18 @@ $state = [
                 </td>
                 <td><?= htmlspecialchars(substr($r['created_at'], 0, 10)) ?></td>
                 <td>
-                    <a href="<?= makeUrl(COMPONENTS_URL . 'manage_questions.php', [], ['test' => $r['id']]) ?>" class="btn btn-sm btn-primary">Questions</a>
+                    <a href="<?= makeUrl(COMPONENTS_URL . 'manage_questions.php', [], ['test' => $r['id']]) ?>"
+                       class="btn btn-sm btn-primary">Questions</a>
                     <!-- Edit only swaps the rows in the browser, no request is sent -->
                     <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleEdit(this)">Edit</button>
                     <button class="btn btn-sm btn-outline-secondary"
-                            hx-post="<?= HANDLERS_URL ?>testProcess.php"
-                            hx-vals='<?= htmlspecialchars(json_encode($state + ['action' => 'toggle', 'id' => $r['id']]), ENT_QUOTES) ?>'>
+                            hx-post="<?= $handler ?>"
+                            hx-vals='<?= postValues($state, ["action" => "toggle", "id" => $r["id"]]) ?>'>
                         <?= $r['is_published'] ? 'Unpublish' : 'Publish' ?>
                     </button>
                     <button class="btn btn-sm btn-outline-danger"
-                            hx-post="<?= HANDLERS_URL ?>testProcess.php"
-                            hx-vals='<?= htmlspecialchars(json_encode($state + ['action' => 'delete', 'id' => $r['id']]), ENT_QUOTES) ?>'
+                            hx-post="<?= $handler ?>"
+                            hx-vals='<?= postValues($state, ["action" => "delete", "id" => $r["id"]]) ?>'
                             hx-confirm="Delete this test and all its questions?">Delete</button>
                 </td>
             </tr>
@@ -184,24 +222,31 @@ $state = [
             <tr class="edit-row d-none">
                 <td>
                     <!-- UPDATE form of this row (the inputs below belong to it through form="...") -->
-                    <form id="<?= $formId ?>" hx-post="<?= HANDLERS_URL ?>testProcess.php">
+                    <form id="<?= $formId ?>" hx-post="<?= $handler ?>">
                         <input type="hidden" name="action" value="update">
                         <input type="hidden" name="id" value="<?= $r['id'] ?>">
                         <?php foreach ($state as $k => $v): ?>
-                            <input type="hidden" name="<?= $k ?>" value="<?= htmlspecialchars($v) ?>">
+                            <input type="hidden" name="<?= $k ?>" value="<?= htmlspecialchars((string)$v) ?>">
                         <?php endforeach; ?>
                     </form>
-                    <input class="form-control form-control-sm" form="<?= $formId ?>" name="title" value="<?= htmlspecialchars($r['title']) ?>" required>
+                    <input class="form-control form-control-sm" form="<?= $formId ?>" name="title"
+                           value="<?= htmlspecialchars($r['title']) ?>" required>
                 </td>
                 <td>
                     <select class="form-select form-select-sm" form="<?= $formId ?>" name="subject_id" required>
                         <?php foreach ($subjects as $s): ?>
-                            <option value="<?= $s['id'] ?>" <?= $s['id'] == $r['subject_id'] ? 'selected' : '' ?>><?= htmlspecialchars($s['subject_name']) ?></option>
+                            <option value="<?= $s['id'] ?>" <?= $s['id'] == $r['subject_id'] ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($s['subject_name']) ?>
+                            </option>
                         <?php endforeach; ?>
                     </select>
                 </td>
-                <td><?= $r['question_count'] ?></td>
-                <td><input class="form-control form-control-sm" form="<?= $formId ?>" name="time_limit" type="number" min="1" max="600" value="<?= htmlspecialchars($r['time_limit'] ?? '') ?>" placeholder="Minutes"></td>
+                <td><?= (int)$r['question_count'] ?></td>
+                <td>
+                    <input class="form-control form-control-sm" form="<?= $formId ?>" name="time_limit"
+                           type="number" min="1" max="600" value="<?= htmlspecialchars((string)($r['time_limit'] ?? '')) ?>"
+                           placeholder="Minutes">
+                </td>
                 <td><?= $r['is_published'] ? 'Published' : 'Draft' ?></td>
                 <td><?= htmlspecialchars(substr($r['created_at'], 0, 10)) ?></td>
                 <td>
@@ -219,8 +264,8 @@ $state = [
     <script>
         // Edit and Cancel buttons: show one row, hide the other. No request is sent.
         function toggleEdit(button) {
-            const row     = button.closest('tr');
-            const isEdit  = row.classList.contains('edit-row');
+            const row      = button.closest('tr');
+            const isEdit   = row.classList.contains('edit-row');
             const otherRow = isEdit ? row.previousElementSibling : row.nextElementSibling;
 
             // Cancel: put the inputs back to what the database has

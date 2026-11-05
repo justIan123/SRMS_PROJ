@@ -152,26 +152,26 @@ $state = [
             </form>
         </div>
 
-<div class="col-6 d-flex justify-content-end">
-    <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2 align-items-start">
+        <div class="col-6 d-flex justify-content-end">
+            <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2 align-items-start">
 
-        <div class="form-floating">
-            <input
-                type="number"
-                name="PerPageLimit"
-                class="form-control"
-                value="<?= htmlspecialchars($perPage) ?>"
-                id="limitRows"
-                placeholder="Rows">
-            <label for="limitRows">No. of rows</label>
+                <div class="form-floating">
+                    <input
+                        type="number"
+                        name="PerPageLimit"
+                        class="form-control"
+                        value="<?= htmlspecialchars($perPage) ?>"
+                        id="limitRows"
+                        placeholder="Rows">
+                    <label for="limitRows">No. of rows</label>
+                </div>
+
+                <button class="btn btn-outline-primary">
+                    Set
+                </button>
+
+            </form>
         </div>
-
-        <button class="btn btn-outline-primary">
-            Set
-        </button>
-
-    </form>
-</div>
     </div>
 
     <!-- TABLE -->

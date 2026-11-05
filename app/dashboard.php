@@ -297,7 +297,7 @@ require_once(INCLUDE_PATH . DS . "auth.php");
             hx-target="#main"
             hx-swap="innerHTML"
             onclick="setActive(this)">
-            <i class="bi bi-pencil-fill"></i>Enrollments
+            <i class="bi bi-newspaper"></i>Enrollments
           </div>
         </li>
 
@@ -313,6 +313,15 @@ require_once(INCLUDE_PATH . DS . "auth.php");
         <?php endif?>
 
         <?php if(!$isUserIsAdmin):?>
+          <li class="nav-item">
+            <div class="nav-link btn text-start"
+              hx-get="<?= COMPONENTS_URL . 'teacher_dashboard_content.php' ?>"
+              hx-target="#main"
+              hx-swap="innerHTML"
+              onclick="setActive(this)">
+              <i class="bi bi-speedometer2"></i>Dashboard
+            </div>
+          </li>
           <li class="nav-item">
             <div class="nav-link btn text-start"
               hx-get="<?= COMPONENTS_URL . 'manage_grades.php' ?>"
@@ -342,20 +351,11 @@ require_once(INCLUDE_PATH . DS . "auth.php");
           </li>
           <li class="nav-item">
             <div class="nav-link btn text-start"
-              hx-get="<?= COMPONENTS_URL . 'manage_test.php' ?>"
-              hx-target="#main"
-              hx-swap="innerHTML"
-              onclick="setActive(this)">
-              <i class="bi bi-book-half"></i>My test
-            </div>
-          </li>
-          <li class="nav-item">
-            <div class="nav-link btn text-start"
               hx-get="<?= COMPONENTS_URL . 'manage_tests.php' ?>"
               hx-target="#main"
               hx-swap="innerHTML"
               onclick="setActive(this)">
-              <i class="bi bi-book-half"></i>My tests
+              <i class="bi bi-book-half"></i>Test Maker
             </div>
           </li>
         <?php endif?>
@@ -385,12 +385,21 @@ require_once(INCLUDE_PATH . DS . "auth.php");
       <div id="main-wrapper">
         <div id="main">
           <!-- Initial auto-load component -->
-          <div class="nav-link btn text-start active"
-            hx-get="<?= COMPONENTS_URL . 'dashboard_content.php' ?>"
-            hx-target="#main"
-            hx-swap="innerHTML"
-            hx-trigger="load">
-          </div>
+           <?php if($isUserIsAdmin):?>
+            <div class="nav-link btn text-start active"
+              hx-get="<?= COMPONENTS_URL . 'admin_dashboard_content.php' ?>"
+              hx-target="#main"
+              hx-swap="innerHTML"
+              hx-trigger="load">
+            </div>
+          <?php else:?>
+            <div class="nav-link btn text-start active"
+              hx-get="<?= COMPONENTS_URL . 'teacher_dashboard_content.php' ?>"
+              hx-target="#main"
+              hx-swap="innerHTML"
+              hx-trigger="load">
+            </div>
+          <?php endif?>
         </div>
       </div>
     </header>

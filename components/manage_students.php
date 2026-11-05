@@ -177,13 +177,23 @@ $state = [
         </div>
 
         <div class="col-6 d-flex justify-content-end">
-            <!-- limit rows -->
-            <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2">
-                <p class="mt-3">Rows per page</p>
-                <?php hiddenFields($state, ['PerPageLimit', 'PageNum', 'gPageNum']); ?>
-                <input type="number" name="PerPageLimit" min="1" class="form-control w-auto"
-                       value="<?= htmlspecialchars($perPage) ?>">
-                <button class="btn btn-outline-primary">Set</button>
+            <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2 align-items-start">
+
+                <div class="form-floating">
+                    <input
+                        type="number"
+                        name="PerPageLimit"
+                        class="form-control"
+                        value="<?= htmlspecialchars($perPage) ?>"
+                        id="limitRows"
+                        placeholder="Rows">
+                    <label for="limitRows">No. of rows</label>
+                </div>
+
+                <button class="btn btn-outline-primary">
+                    Set
+                </button>
+
             </form>
         </div>
     </div>

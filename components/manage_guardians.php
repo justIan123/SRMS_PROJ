@@ -27,7 +27,7 @@ $sort = array_key_exists($_GET['sort'] ?? '', $headers) ? $_GET['sort'] : 'id';
 $dir  = ($_GET['dir'] ?? '') === 'DESC' ? 'DESC' : 'ASC';
 $flip = $dir === 'ASC' ? 'DESC' : 'ASC';
 
-$perPage = 10;
+$perPage = 10;$perPage = max(1, (int)($_GET['PerPageLimit'] ?? 10));
 
 try {
     // Everything belongs to the current school year
@@ -68,10 +68,11 @@ try {
 // Current state of the page. makeUrl() builds every link from this,
 // and the update/delete requests send it back so the page looks the same afterwards.
 $state = [
-    'sort'   => $sort,
-    'dir'    => $dir,
-    'search' => $search,
-    'gpage'  => $page,
+    'sort'         => $sort,
+    'dir'          => $dir,
+    'search'       => $search,
+    'PerPageLimit' => $perPage,
+    'gpage'        => $page,
 ];
 ?>
 
@@ -92,15 +93,42 @@ $state = [
     </form>
 
     <!-- SEARCH -->
-    <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2">
-        <input type="hidden" name="sort" value="<?= $sort ?>">
-        <input type="hidden" name="dir" value="<?= $dir ?>">
-        <input type="text" name="search" class="form-control w-auto" value="<?= htmlspecialchars($search) ?>" placeholder="Search...">
-        <button class="btn btn-outline-primary">Search</button>
-        <?php if ($search !== ''): ?>
-            <a href="<?= makeUrl($self, $state, ['search' => '', 'gpage' => null]) ?>" class="btn btn-outline-secondary">Clear</a>
-        <?php endif; ?>
-    </form>
+    <div class="row">
+        <div class="col-6">
+            <!-- SEARCH -->
+            <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2">
+                <?php hiddenFields($state, ['search', 'gpage']); ?>
+                <input type="text" name="search" class="form-control w-auto"
+                       value="<?= htmlspecialchars($search) ?>" placeholder="Search...">
+                <button class="btn btn-outline-primary">Search</button>
+                <?php if ($search !== ''): ?>
+                    <a href="<?= makeUrl($self, $state, ['search' => '', 'gpage' => null]) ?>"
+                        class="btn btn-outline-secondary">Clear</a>
+                <?php endif; ?>
+            </form>
+        </div>
+
+        <div class="col-6 d-flex justify-content-end">
+            <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2 align-items-start">
+
+                <div class="form-floating">
+                    <input
+                        type="number"
+                        name="PerPageLimit"
+                        class="form-control"
+                        value="<?= htmlspecialchars($perPage) ?>"
+                        id="limitRows"
+                        placeholder="Rows">
+                    <label for="limitRows">No. of rows</label>
+                </div>
+
+                <button class="btn btn-outline-primary">
+                    Set
+                </button>
+
+            </form>
+        </div>
+    </div>
 
     <!-- TABLE -->
     <table class="table">
