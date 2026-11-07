@@ -14,6 +14,8 @@ try {
     echo alertBox('danger', 'Could not load the school years. Please try again.');
     return;
 }
+// placeholder para gumana ang function
+$state = ['page' => 1];
 ?>
 
 <div hx-target="#main" hx-indicator="#global-spinner">
@@ -70,14 +72,24 @@ try {
                         <!-- END -->
                         <button class="btn btn-sm btn-outline-danger"
                                 hx-post="<?= HANDLERS_URL ?>schoolYearProcess.php"
-                                hx-vals='{"action": "end", "id": "<?= $y['id'] ?>"}'
-                                hx-confirm="End this school year?">End</button>
+                                hx-vals="<?= postValues($state, [
+                                    'action' => 'end',
+                                    'id' => $y['id']
+                                ]) ?>"
+                                hx-confirm="End this school year?">
+                            End
+                        </button>
                     <?php else: ?>
                         <!-- START -->
                         <button class="btn btn-sm btn-outline-success"
                                 hx-post="<?= HANDLERS_URL ?>schoolYearProcess.php"
-                                hx-vals='{"action": "start", "id": "<?= $y['id'] ?>"}'
-                                hx-confirm="Start this school year? Any running school year will be ended.">Start</button>
+                                hx-vals="<?= postValues($state, [
+                                    'action' => 'start',
+                                    'id' => $y['id']
+                                ]) ?>"
+                                hx-confirm="Start this school year? Any running school year will be ended.">
+                            Start
+                        </button>
                     <?php endif; ?>
                 </td>
             </tr>

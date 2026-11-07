@@ -44,7 +44,7 @@ try {
         } else {
             // only one can run at a time: end all, then start this one.
             // If the second statement fails, the rollback brings the old one back.
-            $stmt = $pdo->prepare("UPDATE school_years SET is_active = :active");
+            $stmt = $pdo->prepare("UPDATE school_years SET is_active = :active WHERE is_active = 1");
             $stmt->execute([':active' => 0]);
 
             $stmt = $pdo->prepare("UPDATE school_years SET is_active = :active WHERE id = :id");
