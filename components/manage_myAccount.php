@@ -52,7 +52,7 @@ if ($initials === '') {
 $fullName = trim(($user['fname'] ?? '') . ' ' . ($user['lname'] ?? ''));
 ?>
 
-<div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner">
+<div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner, #main">
 
     <h3>My Account</h3>
     <div id="message"><?= $message ?? '' ?></div>

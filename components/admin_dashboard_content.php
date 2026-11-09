@@ -80,7 +80,7 @@ $cards = [
 ];
 ?>
 
-<div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner">
+<div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner, #main">
 
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h3 class="mb-0">Dashboard</h3>

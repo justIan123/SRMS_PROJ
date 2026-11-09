@@ -76,151 +76,193 @@ $state = [
 ];
 ?>
 
-<div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner">
+<div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner, #main">
 
     <h3>Guardians <small class="text-muted fs-6"><?= htmlspecialchars($year['name']) ?></small></h3>
     <div id="message"><?= $message ?? '' ?></div>
-
+    
     <!-- CREATE -->
-    <form hx-post="<?= HANDLERS_URL ?>guardianProcess.php" class="mb-4 d-flex gap-2">
+    <form hx-post="<?= $handler ?>" class="mb-4">
         <input type="hidden" name="action" value="create">
-        <input name="fname" placeholder="First name" class="form-control" required>
-        <input name="lname" placeholder="Last name" class="form-control" required>
-        <input name="mname" placeholder="Middle name" class="form-control">
-        <input name="phone" placeholder="Phone" class="form-control">
-        <input name="email" type="email" placeholder="Email" class="form-control">
-        <button class="btn btn-primary">Create</button>
+
+        <!-- Guardian information -->
+        <div class="row g-2 mb-2">
+            <div class="col-12 col-md-4">
+                <input name="fname" placeholder="First name"
+                    class="form-control" required>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <input name="lname" placeholder="Last name"
+                    class="form-control" required>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <input name="mname" placeholder="Middle name"
+                    class="form-control">
+            </div>
+        </div>
+
+        <!-- Contact information -->
+        <div class="row g-2">
+            <div class="col-12 col-md-5">
+                <input name="phone" placeholder="Phone"
+                    class="form-control">
+            </div>
+
+            <div class="col-12 col-md-5">
+                <input name="email" type="email" placeholder="Email"
+                    class="form-control">
+            </div>
+
+            <div class="col-12 col-md-auto d-grid">
+                <button class="btn btn-primary">Create Guardian</button>
+            </div>
+        </div>
     </form>
 
     <!-- SEARCH -->
-    <div class="row">
-        <div class="col-6">
-            <!-- SEARCH -->
-            <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2">
+    <div class="row g-2">
+        <div class="col-12 col-md-6">
+            <form method="get" action="<?= $self ?>"
+                class="mb-3 d-flex gap-2">
+
                 <?php hiddenFields($state, ['search', 'gpage']); ?>
-                <input type="text" name="search" class="form-control w-auto"
-                       value="<?= htmlspecialchars($search) ?>" placeholder="Search...">
+
+                <input type="text"
+                    name="search"
+                    class="form-control"
+                    value="<?= htmlspecialchars($search) ?>"
+                    placeholder="Search...">
+
                 <button class="btn btn-outline-primary">Search</button>
+
                 <?php if ($search !== ''): ?>
                     <a href="<?= makeUrl($self, $state, ['search' => '', 'gpage' => null]) ?>"
-                        class="btn btn-outline-secondary">Clear</a>
+                    class="btn btn-outline-secondary">
+                        Clear
+                    </a>
                 <?php endif; ?>
             </form>
         </div>
 
-        <div class="col-6 d-flex justify-content-end">
-            <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2 align-items-start">
+        <!-- ROW LIMIT -->
+        <div class="col-12 col-md-6 d-flex justify-content-md-end">
+            <form method="get" action="<?= $self ?>"
+                class="mb-3 d-flex gap-2 align-items-start">
 
                 <div class="form-floating">
-                    <input
-                        type="number"
+                    <input type="number"
                         name="PerPageLimit"
                         class="form-control"
                         value="<?= htmlspecialchars($perPage) ?>"
                         id="limitRows"
                         placeholder="Rows">
+
                     <label for="limitRows">No. of rows</label>
                 </div>
 
-                <button class="btn btn-outline-primary">
-                    Set
-                </button>
+                <button class="btn btn-outline-primary">Set</button>
 
             </form>
         </div>
+
     </div>
 
     <!-- TABLE -->
-    <table class="table">
-        <tr>
-            <?php foreach ($headers as $col => $label): ?>
-                <th><a href="<?= makeUrl($self, $state, ['sort' => $col, 'dir' => $flip, 'gpage' => null]) ?>"><?= $label ?></a></th>
-            <?php endforeach; ?>
-            <th>Actions</th>
-        </tr>
-
-        <?php if (!$rows): ?>
-            <tr><td colspan="6" class="text-center text-muted">No guardians found.</td></tr>
-        <?php endif; ?>
-
-        <?php foreach ($rows as $r): ?>
-            <?php $formId = 'editForm' . $r['id']; ?>
-
-            <!-- Row type 1: a normal row -->
+    <div class="table-responsive">
+        <table class="table table-sm align-middle text-nowrap">
             <tr>
-                <td><?= $r['id'] ?></td>
-                <td><?= htmlspecialchars($r['fname']) ?></td>
-                <td><?= htmlspecialchars($r['lname']) ?></td>
-                <td><?= htmlspecialchars($r['mname']) ?></td>
-                <td><?= htmlspecialchars($r['phone'] ?? '') ?></td>
-                <td><?= htmlspecialchars($r['email'] ?? '') ?></td>
-                <td><?= htmlspecialchars($r['is_active'] ? 'ACTIVE' : 'INACTIVE') ?></td>
-                <td>
-                    <!-- Edit only swaps the rows in the browser, no request is sent -->
-                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleEdit(this)">Edit</button>
-                    <!-- <button class="btn btn-sm btn-outline-danger"
-                            hx-post="<?= HANDLERS_URL ?>guardianProcess.php"
-                            hx-vals='<?= htmlspecialchars(json_encode($state + ['action' => 'delete', 'id' => $r['id']]), ENT_QUOTES) ?>'
-                            hx-confirm="Delete this guardian?">Delete</button> -->
-
-                    <!-- DROP DOWN STATUS -->
-
-                    <button class="btn btn-sm btn-outline-danger dropdown-toggle"
-                            type="button"
-                            data-bs-toggle="dropdown"
-                            aria-expanded="false">
-                        Status
-                    </button>
-
-                    <ul class="dropdown-menu">
-                        <li>
-                            <button class="dropdown-item"
-                                    hx-post="<?= $handler ?>"
-                                    hx-vals='<?= postValues($state, ["action" => "status", "id" => $r["id"], "status" => 1]) ?>'
-                                    hx-confirm="Set Guardian to Active?">
-                                Active
-                            </button>
-                        </li>
-
-                        <li>
-                            <button class="dropdown-item"
-                                    hx-post="<?= $handler ?>"
-                                    hx-vals='<?= postValues($state, ["action" => "status", "id" => $r["id"], "status" => 0]) ?>'
-                                    hx-confirm="Set Guardian to Inactive?">
-                                Inactive
-                            </button>
-                        </li>
-                    </ul>
-                </td>
+                <?php foreach ($headers as $col => $label): ?>
+                    <th><a href="<?= makeUrl($self, $state, ['sort' => $col, 'dir' => $flip, 'gpage' => null]) ?>"><?= $label ?></a></th>
+                <?php endforeach; ?>
+                <th>Actions</th>
             </tr>
 
-            <!-- Row type 2: the edit row, hidden until Edit is pressed -->
-            <tr class="edit-row d-none">
-                <td>
-                    <?= $r['id'] ?>
-                    <!-- UPDATE form of this row (the inputs below belong to it through form="...") -->
-                    <form id="<?= $formId ?>" hx-post="<?= HANDLERS_URL ?>guardianProcess.php">
-                        <input type="hidden" name="action" value="update">
-                        <input type="hidden" name="id" value="<?= $r['id'] ?>">
-                        <?php foreach ($state as $k => $v): ?>
-                            <input type="hidden" name="<?= $k ?>" value="<?= htmlspecialchars($v) ?>">
-                        <?php endforeach; ?>
-                    </form>
-                </td>
-                <td><input form="<?= $formId ?>" name="fname" value="<?= htmlspecialchars($r['fname']) ?>" required></td>
-                <td><input form="<?= $formId ?>" name="lname" value="<?= htmlspecialchars($r['lname']) ?>" required></td>
-                <td><input form="<?= $formId ?>" name="mname" value="<?= htmlspecialchars($r['mname']) ?>" required></td>
-                <td><input form="<?= $formId ?>" name="phone" value="<?= htmlspecialchars($r['phone'] ?? '') ?>"></td>
-                <td><input form="<?= $formId ?>" name="email" value="<?= htmlspecialchars($r['email'] ?? '') ?>"></td>
-                <td>
-                    <button form="<?= $formId ?>" class="btn btn-sm btn-success">Save</button>
-                    <!-- Cancel swaps back and clears what was typed, no request is sent -->
-                    <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit(this)">Cancel</button>
-                </td>
-            </tr>
+            <?php if (!$rows): ?>
+                <tr><td colspan="8" class="text-center text-muted">No guardians found.</td></tr>
+            <?php endif; ?>
 
-        <?php endforeach; ?>
-    </table>
+            <?php foreach ($rows as $r): ?>
+                <?php $formId = 'editForm' . $r['id']; ?>
+
+                <!-- Row type 1: a normal row -->
+                <tr>
+                    <td><?= $r['id'] ?></td>
+                    <td><?= htmlspecialchars($r['fname']) ?></td>
+                    <td><?= htmlspecialchars($r['lname']) ?></td>
+                    <td><?= htmlspecialchars($r['mname']) ?></td>
+                    <td><?= htmlspecialchars($r['phone'] ?? '') ?></td>
+                    <td><?= htmlspecialchars($r['email'] ?? '') ?></td>
+                    <td><?= htmlspecialchars($r['is_active'] ? 'ACTIVE' : 'INACTIVE') ?></td>
+                    <td>
+                        <!-- Edit only swaps the rows in the browser, no request is sent -->
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleEdit(this)">Edit</button>
+                        <!-- <button class="btn btn-sm btn-outline-danger"
+                                hx-post="<?= HANDLERS_URL ?>guardianProcess.php"
+                                hx-vals='<?= htmlspecialchars(json_encode($state + ['action' => 'delete', 'id' => $r['id']]), ENT_QUOTES) ?>'
+                                hx-confirm="Delete this guardian?">Delete</button> -->
+
+                        <!-- DROP DOWN STATUS -->
+
+                        <button class="btn btn-sm btn-outline-danger dropdown-toggle"
+                                type="button"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false">
+                            Status
+                        </button>
+
+                        <ul class="dropdown-menu">
+                            <li>
+                                <button class="dropdown-item"
+                                        hx-post="<?= $handler ?>"
+                                        hx-vals='<?= postValues($state, ["action" => "status", "id" => $r["id"], "status" => 1]) ?>'
+                                        hx-confirm="Set Guardian to Active?">
+                                    Active
+                                </button>
+                            </li>
+
+                            <li>
+                                <button class="dropdown-item"
+                                        hx-post="<?= $handler ?>"
+                                        hx-vals='<?= postValues($state, ["action" => "status", "id" => $r["id"], "status" => 0]) ?>'
+                                        hx-confirm="Set Guardian to Inactive?">
+                                    Inactive
+                                </button>
+                            </li>
+                        </ul>
+                    </td>
+                </tr>
+
+                <!-- Row type 2: the edit row, hidden until Edit is pressed -->
+                <tr class="edit-row d-none">
+                    <td>
+                        <?= $r['id'] ?>
+                        <!-- UPDATE form of this row (the inputs below belong to it through form="...") -->
+                        <form id="<?= $formId ?>" hx-post="<?= HANDLERS_URL ?>guardianProcess.php">
+                            <input type="hidden" name="action" value="update">
+                            <input type="hidden" name="id" value="<?= $r['id'] ?>">
+                            <?php foreach ($state as $k => $v): ?>
+                                <input type="hidden" name="<?= $k ?>" value="<?= htmlspecialchars($v) ?>">
+                            <?php endforeach; ?>
+                        </form>
+                    </td>
+                    <td><input form="<?= $formId ?>" name="fname" value="<?= htmlspecialchars($r['fname']) ?>" required></td>
+                    <td><input form="<?= $formId ?>" name="lname" value="<?= htmlspecialchars($r['lname']) ?>" required></td>
+                    <td><input form="<?= $formId ?>" name="mname" value="<?= htmlspecialchars($r['mname']) ?>" required></td>
+                    <td><input form="<?= $formId ?>" name="phone" value="<?= htmlspecialchars($r['phone'] ?? '') ?>"></td>
+                    <td><input form="<?= $formId ?>" name="email" value="<?= htmlspecialchars($r['email'] ?? '') ?>"></td>
+                    <td><?= $r['is_active'] ? 'ACTIVE' : 'INACTIVE' ?></td>
+                    <td class="d-flex justify-content-center gap-1 flex-wrap">
+                        <button form="<?= $formId ?>" class="btn btn-sm btn-success">Save</button>
+                        <!-- Cancel swaps back and clears what was typed, no request is sent -->
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit(this)">Cancel</button>
+                    </td>
+                </tr>
+
+            <?php endforeach; ?>
+        </table>
+    </div>
 
     <?php renderPagination(makeUrl($self, $state, ['gpage' => null]), $page, "gpage", $totalPages); ?>
 

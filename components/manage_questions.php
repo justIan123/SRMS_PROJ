@@ -78,7 +78,8 @@ foreach ($questions as $q) {
 }
 ?>
 
-<div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner">
+<div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner, #main">
+
     <a href="<?= makeUrl($testsUrl, []) ?>" class="btn btn-sm btn-outline-secondary mb-3">&larr; Back to my tests</a>
 
     <h3>

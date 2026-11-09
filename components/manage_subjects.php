@@ -117,7 +117,7 @@ $state = [
 ];
 ?>
 
-<div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner">
+<div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner, #main">
 
     <h3>Subjects <small class="text-muted fs-6"><?= htmlspecialchars($year['name']) ?></small></h3>
     <div id="message"><?= $message ?? '' ?></div>
@@ -126,145 +126,167 @@ $state = [
     <form hx-post="<?= $handler ?>" class="mb-4">
         <input type="hidden" name="action" value="create">
         <?php hiddenFields($state); ?>
-        <div class="row mb-3">
-            <div class="col">
-                <input name="subject_name" placeholder="Subject name" class="form-control" required>
+
+        <div class="row g-2">
+            <div class="col-12 col-md-5">
+                <input name="subject_name"
+                    placeholder="Subject name"
+                    class="form-control"
+                    required>
             </div>
-            <div class="col">
-                <input name="subject_description" placeholder="Description" class="form-control">
+
+            <div class="col-12 col-md-5">
+                <input name="subject_description"
+                    placeholder="Description"
+                    class="form-control">
             </div>
-            <div class="col d-flex justify-content-end">
+
+            <div class="col-12 col-md-auto d-grid">
                 <button class="btn btn-primary">Create</button>
             </div>
         </div>
     </form>
 
-    <div class="row">
-        <div class="col-6">
-            <!-- SEARCH -->
-            <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2">
+    <div class="row g-2">
+
+        <!-- SEARCH -->
+        <div class="col-12 col-md-6">
+            <form method="get" action="<?= $self ?>"
+                class="mb-3 d-flex gap-2">
+
                 <?php hiddenFields($state, ['search', 'PageNum']); ?>
-                <input type="text" name="search" class="form-control w-auto"
-                       value="<?= htmlspecialchars($search) ?>" placeholder="Search...">
+
+                <input type="text"
+                    name="search"
+                    class="form-control"
+                    value="<?= htmlspecialchars($search) ?>"
+                    placeholder="Search...">
+
                 <button class="btn btn-outline-primary">Search</button>
+
                 <?php if ($search !== ''): ?>
                     <a href="<?= makeUrl($self, $state, ['search' => '', 'PageNum' => null]) ?>"
-                       class="btn btn-outline-secondary">Clear</a>
+                    class="btn btn-outline-secondary">
+                        Clear
+                    </a>
                 <?php endif; ?>
             </form>
         </div>
 
-        <div class="col-6 d-flex justify-content-end">
-            <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2 align-items-start">
+        <!-- ROW LIMIT -->
+        <div class="col-12 col-md-6 d-flex justify-content-md-end">
+            <form method="get" action="<?= $self ?>"
+                class="mb-3 d-flex gap-2 align-items-start">
 
                 <div class="form-floating">
-                    <input
-                        type="number"
+                    <input type="number"
                         name="PerPageLimit"
                         class="form-control"
                         value="<?= htmlspecialchars($perPage) ?>"
                         id="limitRows"
                         placeholder="Rows">
+
                     <label for="limitRows">No. of rows</label>
                 </div>
 
-                <button class="btn btn-outline-primary">
-                    Set
-                </button>
+                <button class="btn btn-outline-primary">Set</button>
 
             </form>
         </div>
+
     </div>
 
     <!-- SUBJECT TABLE -->
-    <table class="table align-middle">
-        <tr>
-            <?php foreach ($headers as $col => $label): ?>
-                <th>
-                    <a href="<?= makeUrl($self, $state, ['sort' => $col, 'dir' => $flip, 'PageNum' => null]) ?>">
-                        <?= $label ?>
-                    </a>
-                </th>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle text-nowrap">
+            <tr>
+                <?php foreach ($headers as $col => $label): ?>
+                    <th>
+                        <a href="<?= makeUrl($self, $state, ['sort' => $col, 'dir' => $flip, 'PageNum' => null]) ?>">
+                            <?= $label ?>
+                        </a>
+                    </th>
+                <?php endforeach; ?>
+                <th>Actions</th>
+            </tr>
+
+            <?php if (!$rows): ?>
+                <tr><td colspan="6" class="text-center text-muted">No subjects found.</td></tr>
+            <?php endif; ?>
+
+            <?php foreach ($rows as $r): ?>
+                <?php $formId = 'editForm' . $r['id']; ?>
+
+                <!-- Row type 1: a normal row -->
+                <tr class="<?= $r['id'] == $assignId ? 'table-warning' : '' ?>">
+                    <td><?= $r['id'] ?></td>
+                    <td><?= htmlspecialchars($r['subject_name']) ?></td>
+                    <td><?= htmlspecialchars($r['subject_description'] ?? '') ?></td>
+                    <td><?= htmlspecialchars($r['teachers'] ?? '-') ?></td>
+                    <td>
+                        <?php if ($r['is_active']): ?>
+                            <span class="badge text-bg-success">Active</span>
+                        <?php else: ?>
+                            <span class="badge text-bg-secondary">Inactive</span>
+                        <?php endif; ?>
+                    </td>
+                    <td class="text-nowrap">
+                        <!-- Edit only swaps the rows in the browser, no request is sent -->
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleEdit(this)">Edit</button>
+
+                        <?php if ($r['id'] == $assignId): ?>
+                            <a href="<?= makeUrl($self, $state, ['assign' => null]) ?>"
+                            class="btn btn-sm btn-secondary">Done</a>
+                        <?php else: ?>
+                            <a href="<?= makeUrl($self, $state, ['assign' => $r['id']]) ?>"
+                            class="btn btn-sm btn-outline-success">Teachers</a>
+                        <?php endif; ?>
+
+                        <button class="btn btn-sm btn-outline-danger"
+                                hx-post="<?= $handler ?>"
+                                hx-vals='<?= postValues($state, [
+                                    'action'    => 'toggle',
+                                    'id'        => $r['id'],
+                                    'is_active' => $r['is_active'] ? 0 : 1,
+                                ]) ?>'
+                                hx-confirm="<?= $r['is_active'] ? 'Deactivate' : 'Activate' ?> this subject?">
+                            <?= $r['is_active'] ? 'Deactivate' : 'Activate' ?>
+                        </button>
+                    </td>
+                </tr>
+
+                <!-- Row type 2: the edit row, hidden until Edit is pressed -->
+                <tr class="edit-row d-none">
+                    <td class="d-flex flex-wrap gap-1 align-items-center">
+                        <?= $r['id'] ?>
+                        <!-- UPDATE form of this row (the inputs below belong to it through form="...") -->
+                        <form id="<?= $formId ?>" hx-post="<?= $handler ?>">
+                            <input type="hidden" name="action" value="update">
+                            <input type="hidden" name="id" value="<?= $r['id'] ?>">
+                            <?php hiddenFields($state); ?>
+                        </form>
+                    </td>
+                    <td><input form="<?= $formId ?>" name="subject_name" class="form-control form-control-sm"
+                            value="<?= htmlspecialchars($r['subject_name']) ?>" required></td>
+                    <td><input form="<?= $formId ?>" name="subject_description" class="form-control form-control-sm"
+                            value="<?= htmlspecialchars($r['subject_description'] ?? '') ?>"></td>
+                    <td class="text-muted"><?= htmlspecialchars($r['teachers'] ?? '-') ?></td>
+                    <td>
+                        <select form="<?= $formId ?>" name="is_active" class="form-select form-select-sm">
+                            <option value="1" <?= $r['is_active'] ? 'selected' : '' ?>>Active</option>
+                            <option value="0" <?= $r['is_active'] ? '' : 'selected' ?>>Inactive</option>
+                        </select>
+                    </td>
+                    <td class="d-flex flex-wrap gap-1 align-items-center">
+                        <button form="<?= $formId ?>" class="btn btn-sm btn-success">Save</button>
+                        <!-- Cancel swaps back and clears what was typed, no request is sent -->
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit(this)">Cancel</button>
+                    </td>
+                </tr>
+
             <?php endforeach; ?>
-            <th>Actions</th>
-        </tr>
-
-        <?php if (!$rows): ?>
-            <tr><td colspan="6" class="text-center text-muted">No subjects found.</td></tr>
-        <?php endif; ?>
-
-        <?php foreach ($rows as $r): ?>
-            <?php $formId = 'editForm' . $r['id']; ?>
-
-            <!-- Row type 1: a normal row -->
-            <tr class="<?= $r['id'] == $assignId ? 'table-warning' : '' ?>">
-                <td><?= $r['id'] ?></td>
-                <td><?= htmlspecialchars($r['subject_name']) ?></td>
-                <td><?= htmlspecialchars($r['subject_description'] ?? '') ?></td>
-                <td><?= htmlspecialchars($r['teachers'] ?? '-') ?></td>
-                <td>
-                    <?php if ($r['is_active']): ?>
-                        <span class="badge text-bg-success">Active</span>
-                    <?php else: ?>
-                        <span class="badge text-bg-secondary">Inactive</span>
-                    <?php endif; ?>
-                </td>
-                <td class="text-nowrap">
-                    <!-- Edit only swaps the rows in the browser, no request is sent -->
-                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleEdit(this)">Edit</button>
-
-                    <?php if ($r['id'] == $assignId): ?>
-                        <a href="<?= makeUrl($self, $state, ['assign' => null]) ?>"
-                           class="btn btn-sm btn-secondary">Done</a>
-                    <?php else: ?>
-                        <a href="<?= makeUrl($self, $state, ['assign' => $r['id']]) ?>"
-                           class="btn btn-sm btn-outline-success">Teachers</a>
-                    <?php endif; ?>
-
-                    <button class="btn btn-sm btn-outline-danger"
-                            hx-post="<?= $handler ?>"
-                            hx-vals='<?= postValues($state, [
-                                'action'    => 'toggle',
-                                'id'        => $r['id'],
-                                'is_active' => $r['is_active'] ? 0 : 1,
-                            ]) ?>'
-                            hx-confirm="<?= $r['is_active'] ? 'Deactivate' : 'Activate' ?> this subject?">
-                        <?= $r['is_active'] ? 'Deactivate' : 'Activate' ?>
-                    </button>
-                </td>
-            </tr>
-
-            <!-- Row type 2: the edit row, hidden until Edit is pressed -->
-            <tr class="edit-row d-none">
-                <td>
-                    <?= $r['id'] ?>
-                    <!-- UPDATE form of this row (the inputs below belong to it through form="...") -->
-                    <form id="<?= $formId ?>" hx-post="<?= $handler ?>">
-                        <input type="hidden" name="action" value="update">
-                        <input type="hidden" name="id" value="<?= $r['id'] ?>">
-                        <?php hiddenFields($state); ?>
-                    </form>
-                </td>
-                <td><input form="<?= $formId ?>" name="subject_name" class="form-control form-control-sm"
-                           value="<?= htmlspecialchars($r['subject_name']) ?>" required></td>
-                <td><input form="<?= $formId ?>" name="subject_description" class="form-control form-control-sm"
-                           value="<?= htmlspecialchars($r['subject_description'] ?? '') ?>"></td>
-                <td class="text-muted"><?= htmlspecialchars($r['teachers'] ?? '-') ?></td>
-                <td>
-                    <select form="<?= $formId ?>" name="is_active" class="form-select form-select-sm">
-                        <option value="1" <?= $r['is_active'] ? 'selected' : '' ?>>Active</option>
-                        <option value="0" <?= $r['is_active'] ? '' : 'selected' ?>>Inactive</option>
-                    </select>
-                </td>
-                <td class="text-nowrap">
-                    <button form="<?= $formId ?>" class="btn btn-sm btn-success">Save</button>
-                    <!-- Cancel swaps back and clears what was typed, no request is sent -->
-                    <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit(this)">Cancel</button>
-                </td>
-            </tr>
-
-        <?php endforeach; ?>
-    </table>
+        </table>
+    </div>
 
     <?php renderPagination(makeUrl($self, $state, []), $page, "PageNum", $totalPages); ?>
 
@@ -274,42 +296,45 @@ $state = [
         <div id="teachersDiv" class="mt-4">
             <h5>Teachers for <?= htmlspecialchars($assignSubject['subject_name']) ?></h5>
 
-            <table class="table align-middle w-auto">
-                <tr>
-                    <th>Teacher</th>
-                    <th></th>
-                </tr>
-
-                <?php if (!$teachers): ?>
-                    <tr><td colspan="2" class="text-center text-muted">No teachers found.</td></tr>
-                <?php endif; ?>
-
-                <?php foreach ($teachers as $t): ?>
-                    <?php $isAssigned = in_array($t['id'], $assignedIds); ?>
-                    <tr class="<?= $isAssigned ? 'table-success' : '' ?>">
-                        <td><?= htmlspecialchars($t['fname'] . ' ' . $t['lname']) ?></td>
-                        <td class="text-end">
-                            <?php if ($isAssigned): ?>
-                                <button class="btn btn-sm btn-outline-danger"
-                                        hx-post="<?= $handler ?>"
-                                        hx-vals='<?= postValues($state, [
-                                            'action'     => 'unassign',
-                                            'id'         => $assignId,
-                                            'teacher_id' => $t['id'],
-                                        ]) ?>'>Remove</button>
-                            <?php else: ?>
-                                <button class="btn btn-sm btn-success"
-                                        hx-post="<?= $handler ?>"
-                                        hx-vals='<?= postValues($state, [
-                                            'action'     => 'assign',
-                                            'id'         => $assignId,
-                                            'teacher_id' => $t['id'],
-                                        ]) ?>'>Assign</button>
-                            <?php endif; ?>
-                        </td>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle w-auto">
+                    
+                    <tr>
+                        <th>Teacher</th>
+                        <th></th>
                     </tr>
-                <?php endforeach; ?>
-            </table>
+
+                    <?php if (!$teachers): ?>
+                        <tr><td colspan="2" class="text-center text-muted">No teachers found.</td></tr>
+                    <?php endif; ?>
+
+                    <?php foreach ($teachers as $t): ?>
+                        <?php $isAssigned = in_array($t['id'], $assignedIds); ?>
+                        <tr class="<?= $isAssigned ? 'table-success' : '' ?>">
+                            <td><?= htmlspecialchars($t['fname'] . ' ' . $t['lname']) ?></td>
+                            <td class="text-end">
+                                <?php if ($isAssigned): ?>
+                                    <button class="btn btn-sm btn-outline-danger"
+                                            hx-post="<?= $handler ?>"
+                                            hx-vals='<?= postValues($state, [
+                                                'action'     => 'unassign',
+                                                'id'         => $assignId,
+                                                'teacher_id' => $t['id'],
+                                            ]) ?>'>Remove</button>
+                                <?php else: ?>
+                                    <button class="btn btn-sm btn-success"
+                                            hx-post="<?= $handler ?>"
+                                            hx-vals='<?= postValues($state, [
+                                                'action'     => 'assign',
+                                                'id'         => $assignId,
+                                                'teacher_id' => $t['id'],
+                                            ]) ?>'>Assign</button>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </table>
+            </div>
         </div>
     <?php endif; ?>
 

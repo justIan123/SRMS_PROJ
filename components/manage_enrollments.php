@@ -94,7 +94,7 @@ try {
 $enrolledShown = count(array_filter($rows, fn($r) => isset($enrolled[$r[0]])));
 ?>
 
-<div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner">
+<div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner, #main">
 
     <h3>Enrollment <small class="text-muted fs-6"><?= htmlspecialchars($year['name']) ?></small></h3>
 

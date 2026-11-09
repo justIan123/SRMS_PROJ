@@ -126,7 +126,7 @@ $myStudentsUrl = COMPONENTS_URL . 'manage_myStudents.php';
 $testsUrl      = COMPONENTS_URL . 'manage_tests.php';
 ?>
 
-<div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner">
+<div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner, #main">
 
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h3 class="mb-0">Dashboard <small class="text-muted fs-6"><?= htmlspecialchars($year['name']) ?></small></h3>

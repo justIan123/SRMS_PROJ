@@ -136,33 +136,45 @@ $state = [
 ];
 ?>
 
-<div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner">
+<div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner, #main">
 
     <h3>Students <small class="text-muted fs-6"><?= htmlspecialchars($year['name']) ?></small></h3>
     <div id="message"><?= $message ?? '' ?></div>
 
     <!-- CREATE (the parent is assigned later from the table) -->
-    <form hx-post="<?= $handler ?>" class="mb-4">
-        <input type="hidden" name="action" value="create">
-        <?php hiddenFields($state); ?>
-        <div class="row mb-3">
-            <div class="col">
-                <input name="fname" placeholder="First name" class="form-control" required>
-            </div>
-            <div class="col">
-                <input name="lname" placeholder="Last name" class="form-control" required>
-            </div>
-            <div class="col">
-                <input name="grade_level" placeholder="Grade" class="form-control">
-            </div>
-            <div class="col d-flex justify-content-end">
-                <button class="btn btn-primary">Create</button>
-            </div>
-        </div>
-    </form>
+<form hx-post="<?= $handler ?>" class="mb-4">
+    <input type="hidden" name="action" value="create">
+    <?php hiddenFields($state); ?>
 
-    <div class="row">
-        <div class="col-6">
+    <div class="row g-2 mb-3">
+        <div class="col-12 col-md">
+            <input name="fname"
+                   placeholder="First name"
+                   class="form-control"
+                   required>
+        </div>
+
+        <div class="col-12 col-md">
+            <input name="lname"
+                   placeholder="Last name"
+                   class="form-control"
+                   required>
+        </div>
+
+        <div class="col-12 col-md">
+            <input name="grade_level"
+                   placeholder="Grade"
+                   class="form-control">
+        </div>
+
+        <div class="col-12 col-md-auto d-grid">
+            <button class="btn btn-primary">Create</button>
+        </div>
+    </div>
+</form>
+
+    <div class="row g-2">
+        <div class="col-12 col-md-6">
             <!-- SEARCH -->
             <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2">
                 <?php hiddenFields($state, ['search', 'PageNum']); ?>
@@ -176,7 +188,7 @@ $state = [
             </form>
         </div>
 
-        <div class="col-6 d-flex justify-content-end">
+        <div class="col-12 col-md-6">
             <form method="get" action="<?= $self ?>" class="mb-3 d-flex gap-2 align-items-start">
 
                 <div class="form-floating">
@@ -199,126 +211,128 @@ $state = [
     </div>
 
     <!-- STUDENT TABLE -->
-    <table class="table align-middle">
-        <tr>
-            <?php foreach ($headers as $col => $label): ?>
-                <th>
-                    <a href="<?= makeUrl($self, $state, ['sort' => $col, 'dir' => $flip, 'PageNum' => null]) ?>">
-                        <?= $label ?>
-                    </a>
-                </th>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle text-nowrap">
+            <tr>
+                <?php foreach ($headers as $col => $label): ?>
+                    <th>
+                        <a href="<?= makeUrl($self, $state, ['sort' => $col, 'dir' => $flip, 'PageNum' => null]) ?>">
+                            <?= $label ?>
+                        </a>
+                    </th>
+                <?php endforeach; ?>
+                <th class="text-center">Actions</th>
+            </tr>
+
+            <?php if (!$rows): ?>
+                <tr><td colspan="6" class="text-center text-muted">No students found.</td></tr>
+            <?php endif; ?>
+
+            <?php foreach ($rows as $r): ?>
+                <?php
+                $formId      = 'editForm' . $r['id'];
+                $parentName  = $r['guardian_name'] ?? 'No parent yet';
+                $parentClass = $r['guardian_id'] ? '' : 'text-muted';
+                $assignLabel = $r['guardian_id'] ? 'Change parent' : 'Assign parent';
+                ?>
+
+                <!-- Row type 1: a normal row -->
+                <tr class="<?= $r['id'] == $assignId ? 'table-warning' : '' ?>">
+                    <td><?= $r['id'] ?></td>
+                    <td><?= htmlspecialchars($r['fname']) ?></td>
+                    <td><?= htmlspecialchars($r['lname']) ?></td>
+                    <td><?= htmlspecialchars($r['grade_level'] ?? '') ?></td>
+                    <td class="<?= $parentClass ?>"><?= htmlspecialchars($parentName) ?></td>
+                    <td><?= htmlspecialchars($r['status'] ?? '') ?></td>
+                    <td class="d-flex justify-content-center gap-1 flex-wrap">
+                        <!-- Edit only swaps the rows in the browser, no request is sent -->
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleEdit(this)">Edit</button>
+
+                        <?php if ($r['id'] == $assignId): ?>
+                            <a href="<?= makeUrl($self, $state, ['assign' => null, 'gsearch' => null, 'gPageNum' => null]) ?>"
+                            class="btn btn-sm btn-secondary">Done</a>
+                        <?php else: ?>
+                            <a href="<?= makeUrl($self, $state, ['assign' => $r['id'], 'gsearch' => null, 'gPageNum' => null]) ?>"
+                            class="btn btn-sm btn-outline-success"><?= $assignLabel ?></a>
+                        <?php endif; ?>
+
+                        <!-- DROP DOWN STATUS -->
+
+                        <button class="btn btn-sm btn-outline-danger dropdown-toggle"
+                                type="button"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false">
+                            Status
+                        </button>
+
+                        <ul class="dropdown-menu">
+                            <li>
+                                <button class="dropdown-item"
+                                        hx-post="<?= $handler ?>"
+                                        hx-vals='<?= postValues($state, ["action" => "status", "id" => $r["id"], "status" => "ACTIVE"]) ?>'
+                                        hx-confirm="Set student to Active?">
+                                    Active
+                                </button>
+                            </li>
+
+                            <li>
+                                <button class="dropdown-item"
+                                        hx-post="<?= $handler ?>"
+                                        hx-vals='<?= postValues($state, ["action" => "status", "id" => $r["id"], "status" => "DROPPED"]) ?>'
+                                        hx-confirm="Set student to Dropped?">
+                                    Dropped
+                                </button>
+                            </li>
+
+                            <li>
+                                <button class="dropdown-item"
+                                        hx-post="<?= $handler ?>"
+                                        hx-vals='<?= postValues($state, ["action" => "status", "id" => $r["id"], "status" => "TRANSFERRED"]) ?>'
+                                        hx-confirm="Set student to Transferred?">
+                                    Transferred
+                                </button>
+                            </li>
+
+                            <li>
+                                <button class="dropdown-item"
+                                        hx-post="<?= $handler ?>"
+                                        hx-vals='<?= postValues($state, ["action" => "status", "id" => $r["id"], "status" => "INACTIVE"]) ?>'
+                                        hx-confirm="Set student to Transferred?">
+                                    Inactive
+                                </button>
+                            </li>
+                        </ul>
+                    </td>
+                </tr>
+
+                <!-- Row type 2: the edit row, hidden until Edit is pressed -->
+                <tr class="edit-row d-none">
+                    <td>
+                        <?= $r['id'] ?>
+                        <!-- UPDATE form of this row (the inputs below belong to it through form="...") -->
+                        <form id="<?= $formId ?>" hx-post="<?= $handler ?>">
+                            <input type="hidden" name="action" value="update">
+                            <input type="hidden" name="id" value="<?= $r['id'] ?>">
+                            <?php hiddenFields($state); ?>
+                        </form>
+                    </td>
+                    <td><input form="<?= $formId ?>" name="fname" class="form-control form-control-sm"
+                            value="<?= htmlspecialchars($r['fname']) ?>" required></td>
+                    <td><input form="<?= $formId ?>" name="lname" class="form-control form-control-sm"
+                            value="<?= htmlspecialchars($r['lname']) ?>" required></td>
+                    <td><input form="<?= $formId ?>" name="grade_level" class="form-control form-control-sm"
+                            value="<?= htmlspecialchars($r['grade_level'] ?? '') ?>"></td>
+                    <td class="<?= $parentClass ?>"><?= htmlspecialchars($parentName) ?></td>
+                    <td class="text-nowrap">
+                        <button form="<?= $formId ?>" class="btn btn-sm btn-success">Save</button>
+                        <!-- Cancel swaps back and clears what was typed, no request is sent -->
+                        <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit(this)">Cancel</button>
+                    </td>
+                </tr>
+
             <?php endforeach; ?>
-            <th class="text-center">Actions</th>
-        </tr>
-
-        <?php if (!$rows): ?>
-            <tr><td colspan="6" class="text-center text-muted">No students found.</td></tr>
-        <?php endif; ?>
-
-        <?php foreach ($rows as $r): ?>
-            <?php
-            $formId      = 'editForm' . $r['id'];
-            $parentName  = $r['guardian_name'] ?? 'No parent yet';
-            $parentClass = $r['guardian_id'] ? '' : 'text-muted';
-            $assignLabel = $r['guardian_id'] ? 'Change parent' : 'Assign parent';
-            ?>
-
-            <!-- Row type 1: a normal row -->
-            <tr class="<?= $r['id'] == $assignId ? 'table-warning' : '' ?>">
-                <td><?= $r['id'] ?></td>
-                <td><?= htmlspecialchars($r['fname']) ?></td>
-                <td><?= htmlspecialchars($r['lname']) ?></td>
-                <td><?= htmlspecialchars($r['grade_level'] ?? '') ?></td>
-                <td class="<?= $parentClass ?>"><?= htmlspecialchars($parentName) ?></td>
-                <td><?= htmlspecialchars($r['status'] ?? '') ?></td>
-                <td class="d-flex justify-content-center gap-1">
-                    <!-- Edit only swaps the rows in the browser, no request is sent -->
-                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleEdit(this)">Edit</button>
-
-                    <?php if ($r['id'] == $assignId): ?>
-                        <a href="<?= makeUrl($self, $state, ['assign' => null, 'gsearch' => null, 'gPageNum' => null]) ?>"
-                           class="btn btn-sm btn-secondary">Done</a>
-                    <?php else: ?>
-                        <a href="<?= makeUrl($self, $state, ['assign' => $r['id'], 'gsearch' => null, 'gPageNum' => null]) ?>"
-                           class="btn btn-sm btn-outline-success"><?= $assignLabel ?></a>
-                    <?php endif; ?>
-
-                    <!-- DROP DOWN STATUS -->
-
-                    <button class="btn btn-sm btn-outline-danger dropdown-toggle"
-                            type="button"
-                            data-bs-toggle="dropdown"
-                            aria-expanded="false">
-                        Status
-                    </button>
-
-                    <ul class="dropdown-menu">
-                        <li>
-                            <button class="dropdown-item"
-                                    hx-post="<?= $handler ?>"
-                                    hx-vals='<?= postValues($state, ["action" => "status", "id" => $r["id"], "status" => "ACTIVE"]) ?>'
-                                    hx-confirm="Set student to Active?">
-                                Active
-                            </button>
-                        </li>
-
-                        <li>
-                            <button class="dropdown-item"
-                                    hx-post="<?= $handler ?>"
-                                    hx-vals='<?= postValues($state, ["action" => "status", "id" => $r["id"], "status" => "DROPPED"]) ?>'
-                                    hx-confirm="Set student to Dropped?">
-                                Dropped
-                            </button>
-                        </li>
-
-                        <li>
-                            <button class="dropdown-item"
-                                    hx-post="<?= $handler ?>"
-                                    hx-vals='<?= postValues($state, ["action" => "status", "id" => $r["id"], "status" => "TRANSFERRED"]) ?>'
-                                    hx-confirm="Set student to Transferred?">
-                                Transferred
-                            </button>
-                        </li>
-
-                        <li>
-                            <button class="dropdown-item"
-                                    hx-post="<?= $handler ?>"
-                                    hx-vals='<?= postValues($state, ["action" => "status", "id" => $r["id"], "status" => "INACTIVE"]) ?>'
-                                    hx-confirm="Set student to Transferred?">
-                                Inactive
-                            </button>
-                        </li>
-                    </ul>
-                </td>
-            </tr>
-
-            <!-- Row type 2: the edit row, hidden until Edit is pressed -->
-            <tr class="edit-row d-none">
-                <td>
-                    <?= $r['id'] ?>
-                    <!-- UPDATE form of this row (the inputs below belong to it through form="...") -->
-                    <form id="<?= $formId ?>" hx-post="<?= $handler ?>">
-                        <input type="hidden" name="action" value="update">
-                        <input type="hidden" name="id" value="<?= $r['id'] ?>">
-                        <?php hiddenFields($state); ?>
-                    </form>
-                </td>
-                <td><input form="<?= $formId ?>" name="fname" class="form-control form-control-sm"
-                           value="<?= htmlspecialchars($r['fname']) ?>" required></td>
-                <td><input form="<?= $formId ?>" name="lname" class="form-control form-control-sm"
-                           value="<?= htmlspecialchars($r['lname']) ?>" required></td>
-                <td><input form="<?= $formId ?>" name="grade_level" class="form-control form-control-sm"
-                           value="<?= htmlspecialchars($r['grade_level'] ?? '') ?>"></td>
-                <td class="<?= $parentClass ?>"><?= htmlspecialchars($parentName) ?></td>
-                <td class="text-nowrap">
-                    <button form="<?= $formId ?>" class="btn btn-sm btn-success">Save</button>
-                    <!-- Cancel swaps back and clears what was typed, no request is sent -->
-                    <button type="button" class="btn btn-sm btn-secondary" onclick="toggleEdit(this)">Cancel</button>
-                </td>
-            </tr>
-
-        <?php endforeach; ?>
-    </table>
+        </table>
+    </div>
 
     <?php renderPagination(makeUrl($self, $state, []), $page, "PageNum", $totalPages); ?>
 

@@ -213,7 +213,7 @@ require_once(INCLUDE_PATH . DS . "auth.php");
        <?php if($isUserIsAdmin):?>
         <li class="nav-item">
           <div class="nav-link btn text-start active"
-            hx-get="<?= COMPONENTS_URL . 'dashboard_content.php' ?>"
+            hx-get="<?= COMPONENTS_URL . 'admin_dashboard_content.php' ?>"
             hx-target="#main"
             hx-swap="innerHTML"
             onclick="setActive(this)">
@@ -300,6 +300,16 @@ require_once(INCLUDE_PATH . DS . "auth.php");
             <i class="bi bi-newspaper"></i>Enrollments
           </div>
         </li>
+        
+        <li class="nav-item">
+          <div class="nav-link btn text-start"
+            hx-get="<?= COMPONENTS_URL . 'manage_recommendations.php' ?>"
+            hx-target="#main"
+            hx-swap="innerHTML"
+            onclick="setActive(this)">
+            <i class="bi bi-newspaper"></i>Student recommendations
+          </div>
+        </li>
 
         <li class="nav-item">
           <div class="nav-link btn text-start"
@@ -361,7 +371,12 @@ require_once(INCLUDE_PATH . DS . "auth.php");
         <?php endif?>
 
         <li class="nav-item"><a class="nav-link" href="#"><i class="bi bi-graph-up me-2"></i>Reports</a></li>
-        <li class="nav-item"><a class="nav-link" href="<?= APP_URL . 'logout_page.php'?>"><i class="bi bi-door-closed me-2"></i>Logout</a></li>
+        <a class="nav-link"
+          href="<?= APP_URL . 'logout_page.php' ?>"
+          onclick="return confirm('Are you sure you want to logout?')">
+            <i class="bi bi-door-closed me-2"></i>Log-out
+        </a>
+        
       </ul>
     </nav>
 

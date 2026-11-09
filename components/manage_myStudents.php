@@ -117,7 +117,7 @@ $state = [
 ];
 ?>
 
-<div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner">
+<div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner, #main">
 
     <h3>Grades <small class="text-muted fs-6"><?= htmlspecialchars($year['name']) ?></small></h3>
     <?= GradeNav('mine') ?>
