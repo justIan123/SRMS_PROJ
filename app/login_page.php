@@ -69,10 +69,10 @@ $message = $_GET['message'] ?? '';
         </div>
     </div>
 </nav>
-
+<!-- 
 <footer class="bg-body-tertiary text-center text-lg-start">
     <div class="container p-4">
-        <div class="row"><!-- Company Info -->
+        <div class="row">
             <div class="col-6">
             <h5 class="text-uppercase">Company Name</h5>
             <p class="text-center">
@@ -80,7 +80,7 @@ $message = $_GET['message'] ?? '';
             </p>
         </div>
 
-        <div class="col-lg-6"><!-- Contact -->
+        <div class="col-lg-6">
             <h5 class="text-uppercase">Contact</h5>
             <ul class="list-unstyled mb-0">
                 <li>New York, NY 10012, US</li>
@@ -90,9 +90,8 @@ $message = $_GET['message'] ?? '';
         </div>
    </div>
  </div>
- <!-- Copyright -->
  <div class="text-center p-3">
-    <div class="col-12"><!-- Links -->
+    <div class="col-12">
         <h5 class="text-uppercase">
             Links
         </h5><br>
@@ -111,7 +110,7 @@ $message = $_GET['message'] ?? '';
 
     </div>
  </div>
-</footer>
+</footer> -->
 
 </body>
 </html>
