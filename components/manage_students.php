@@ -243,7 +243,9 @@ $state = [
                     <td><?= htmlspecialchars($r['lname']) ?></td>
                     <td><?= htmlspecialchars($r['grade_level'] ?? '') ?></td>
                     <td class="<?= $parentClass ?>"><?= htmlspecialchars($parentName) ?></td>
-                    <td><?= htmlspecialchars($r['status'] ?? '') ?></td>
+                    <td>
+                        <?= renderStatusBadge($r['status'] ?? '') ?>
+                    </td>
                     <td class="d-flex justify-content-center gap-1 flex-wrap">
                         <!-- Edit only swaps the rows in the browser, no request is sent -->
                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleEdit(this)">Edit</button>

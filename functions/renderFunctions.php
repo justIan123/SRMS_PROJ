@@ -97,3 +97,20 @@ function hiddenFields($state, $skip = []) {
 function postValues($state, $extra) {
     return htmlspecialchars(json_encode(array_merge($state, $extra)), ENT_QUOTES);
 }
+
+function renderStatusBadge($status){
+    $status = strtolower(trim($status));
+
+    return match ($status) {
+        'active'    => '<span class="badge bg-success">ACTIVE</span>',
+        '1'    => '<span class="badge bg-success">ACTIVE</span>',
+        'inactive'  => '<span class="badge bg-secondary">INACTIVE</span>',
+        '0'  => '<span class="badge bg-secondary">INACTIVE</span>',
+        'pending'   => '<span class="badge bg-warning text-dark">PENDING</span>',
+        'approved'  => '<span class="badge bg-primary">APPROVED</span>',
+        'rejected'  => '<span class="badge bg-danger">REJECTED</span>',
+        'transferred'  => '<span class="badge bg-warning">TRANSFERRED</span>',
+        'dropped'  => '<span class="badge bg-danger">DROPPED</span>',
+        default     => '<span class="badge bg-dark">' . htmlspecialchars($status) . '</span>',
+    };
+}

@@ -149,9 +149,8 @@ $state = [
                 </select>
             </div>
 
-            <div class="col-12 col-md-auto d-grid">
-                <button class="btn btn-primary">Create User</button>
-            </div>
+        <div class="col-12 col-md-auto ms-auto d-grid">
+            <button class="btn btn-primary">Create User</button>
         </div>
     </form>
 
@@ -237,9 +236,11 @@ $state = [
                     <td><?= htmlspecialchars($r['username'] ?? 'NONE') ?></td>
                     <td><?= htmlspecialchars($r['email'] ?? 'NONE') ?></td>
                     <td><?= htmlspecialchars($r['roles'] ?? 'NONE') ?></td>
-                    <td><?= htmlspecialchars($r['is_active'] ? 'ACTIVE' : 'SUSPENDED') ?></td>
-                    <td class="d-flex justify-content-center gap-1 flex-wrap">
-                        <?php if (!$isAdmin): ?>
+                    <td>
+                        <?= renderStatusBadge(htmlspecialchars($r['is_active'] ?? '')) ?>
+                    </td>
+                    <?php if (!$isAdmin): ?>
+                        <td class="d-flex justify-content-center gap-1 flex-wrap">
                             <!-- Edit only swaps the rows in the browser, no request is sent -->
                             <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleEdit(this)">Edit</button>
                             <!-- <button class="btn btn-sm btn-outline-danger"
@@ -273,8 +274,7 @@ $state = [
                                 </li>
                             </ul>
                         </td>
-                        <?php endif; ?>
-
+                    <?php endif; ?>
                 </tr>
 
                 <!-- Row type 2: the edit row, hidden until Edit is pressed (the admin can't be edited, so no edit row) -->

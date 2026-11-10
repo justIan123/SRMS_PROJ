@@ -194,7 +194,9 @@ $state = [
                     <td><?= htmlspecialchars($r['mname']) ?></td>
                     <td><?= htmlspecialchars($r['phone'] ?? '') ?></td>
                     <td><?= htmlspecialchars($r['email'] ?? '') ?></td>
-                    <td><?= htmlspecialchars($r['is_active'] ? 'ACTIVE' : 'INACTIVE') ?></td>
+                    <td>
+                        <?= renderStatusBadge(htmlspecialchars($r['is_active'] ?? '')) ?>
+                    </td>
                     <td>
                         <!-- Edit only swaps the rows in the browser, no request is sent -->
                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="toggleEdit(this)">Edit</button>
@@ -252,7 +254,9 @@ $state = [
                     <td><input form="<?= $formId ?>" name="mname" value="<?= htmlspecialchars($r['mname']) ?>" required></td>
                     <td><input form="<?= $formId ?>" name="phone" value="<?= htmlspecialchars($r['phone'] ?? '') ?>"></td>
                     <td><input form="<?= $formId ?>" name="email" value="<?= htmlspecialchars($r['email'] ?? '') ?>"></td>
-                    <td><?= $r['is_active'] ? 'ACTIVE' : 'INACTIVE' ?></td>
+                    <td>
+                        <?= renderStatusBadge(htmlspecialchars($r['is_active'] ?? '')) ?>
+                    </td>
                     <td class="d-flex justify-content-center gap-1 flex-wrap">
                         <button form="<?= $formId ?>" class="btn btn-sm btn-success">Save</button>
                         <!-- Cancel swaps back and clears what was typed, no request is sent -->

@@ -1,4 +1,16 @@
 <?php
+/////////////////////////////////////////////////////////////////
+//                                                             //
+// this file is not used so ignore this file                   //
+//                                                             //
+/////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
 require_once("../public/initialize.php");
 require_once(DB_PATH);
 require_once(FUNCTIONS_PATH . DS . "setErrorFunctions.php");
