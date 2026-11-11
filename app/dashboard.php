@@ -1,3 +1,4 @@
+<!-- https://github.com/justIan123/bootstrap-dashboard-template -->
 <?php
 require_once("../public/initialize.php");
 
@@ -33,6 +34,8 @@ require_once(INCLUDE_PATH . DS . "auth.php");
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- bootstrap icons CDN -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
   <style>
     /* Hide spinner initially */
@@ -371,9 +374,8 @@ require_once(INCLUDE_PATH . DS . "auth.php");
         <?php endif?>
 
         <li class="nav-item"><a class="nav-link" href="#"><i class="bi bi-graph-up me-2"></i>Reports</a></li>
-        <a class="nav-link"
-          href="<?= APP_URL . 'logout_page.php' ?>"
-          onclick="return confirm('Are you sure you want to logout?')">
+        <a class="nav-link" id="logoutLink"
+          href="<?= APP_URL . 'logout_page.php' ?>">
             <i class="bi bi-door-closed me-2"></i>Log-out
         </a>
         
@@ -422,6 +424,45 @@ require_once(INCLUDE_PATH . DS . "auth.php");
 
   <script src="https://unpkg.com/htmx.org@1.9.10"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    /* ---------- SweetAlert confirm for hx-confirm ---------- */
+    document.body.addEventListener('htmx:confirm', function (evt) {
+      // No hx-confirm on this element (e.g. sidebar links): let the request go through untouched
+      if (!evt.detail.question) return;
+
+      evt.preventDefault();
+
+      Swal.fire({
+        title: 'Confirm',
+        text: evt.detail.question,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes',
+        cancelButtonText: 'No'
+      }).then(function (result) {
+        if (result.isConfirmed) {
+          evt.detail.issueRequest(true);
+        }
+      });
+    });
+
+    /* ---------- SweetAlert confirm for logout ---------- */
+    document.getElementById('logoutLink').addEventListener('click', function (e) {
+      e.preventDefault();
+      const href = this.href;
+      Swal.fire({
+        title: 'Log out?',
+        text: 'Are you sure you want to logout?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Yes',
+        cancelButtonText: 'No'
+      }).then(function (result) {
+        if (result.isConfirmed) window.location.href = href;
+      });
+    });
+  </script>
 
   <script>
     /* ---------- Sidebar: push on desktop, slide-out drawer on phones / iPad portrait ---------- */

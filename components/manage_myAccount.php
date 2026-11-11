@@ -52,28 +52,6 @@ if ($initials === '') {
 $fullName = trim(($user['fname'] ?? '') . ' ' . ($user['lname'] ?? ''));
 ?>
 
-<!-- replace the old js alert with sweetalert -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<!-- nalimutan kko na kung saan to kinuha ko -->
-<script>
-document.body.addEventListener('htmx:confirm', function (evt) {
-    evt.preventDefault();
-
-    Swal.fire({
-        title: 'Confirm',
-        text: evt.detail.question,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Yes',
-        cancelButtonText: 'No'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            evt.detail.issueRequest(true);
-        }
-    });
-});
-</script>
-
 <div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner, #main">
 
     <h3>My Account</h3>
