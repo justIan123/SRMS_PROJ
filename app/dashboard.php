@@ -1,6 +1,6 @@
 <!-- https://github.com/justIan123/bootstrap-dashboard-template -->
 <?php
-require_once("../public/initialize.php");
+require_once("../config/initialize.php");
 
 require_once(DB_PATH);
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");

@@ -1,5 +1,5 @@
 <?php
-require_once("../public/initialize.php");
+require_once("../config/initialize.php");
 require_once(DB_PATH);
 require_once(FUNCTIONS_PATH . DS . "setErrorFunctions.php");
 require_once(DEBUG_PATH . "debugFunctions.php");

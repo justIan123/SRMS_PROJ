@@ -1,5 +1,5 @@
 <?php
-require_once("../public/initialize.php");
+require_once("../config/initialize.php");
 require_once(HANDLERS_PATH . DS . "registerProcess.php");
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 ?>

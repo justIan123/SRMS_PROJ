@@ -1,5 +1,5 @@
 <?php
-require_once("../public/initialize.php");
+require_once("../config/initialize.php");
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();

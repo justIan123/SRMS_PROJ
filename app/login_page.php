@@ -1,5 +1,5 @@
 <?php
-require_once("../public/initialize.php");
+require_once("../config/initialize.php");
 require_once(HANDLERS_PATH . DS . "loginProcess.php");
 require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 $message = $_GET['message'] ?? '';
