@@ -163,9 +163,18 @@ $state = [
         </div>
 
         <div class="col-12 col-md">
-            <input name="grade_level"
-                   placeholder="Grade"
-                   class="form-control">
+        <select name="grade_level" class="form-control">
+            <option value="" selected disabled>Select Grade Level</option>
+            <option value="Preschool">Preschool</option>
+            <option value="Kindergarten">Kindergarten</option>
+            <option value="Grade 1">Grade 1</option>
+            <option value="Grade 2">Grade 2</option>
+            <option value="Grade 3">Grade 3</option>
+            <option value="Grade 4">Grade 4</option>
+            <option value="Grade 5">Grade 5</option>
+            <option value="Grade 6">Grade 6</option>
+
+        </select>
         </div>
 
         <div class="col-12 col-md-auto d-grid">
