@@ -17,7 +17,7 @@ require_once(DEBUG_PATH . "debugFunctions.php");
 
     result must be admin
 */
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM users JOIN user_roles ON user_roles.user_id = users.id JOIN roles on user_roles.role = role_id WHERE role_id = 1");
+$stmt = $pdo->prepare("SELECT COUNT(*) FROM users JOIN user_roles ON user_roles.user_id = users.id JOIN roles on user_roles.role = role_id WHERE role_id = 1 AND users.is_active = 1");
 $stmt->execute();
 $adminExists = $stmt->fetchColumn();
 if ($adminExists > 0) {

@@ -256,7 +256,7 @@ foreach ($state as $key => $value) {
         </div>
 
         <?php if ($anyOutdated): ?>
-            <?= alertBox('warning', 'Some scores changed after their recommendation was made. Press <strong>Refresh recommendations</strong> to update them.') ?>
+            <?= renderAlert('Some scores changed after their recommendation was made. Press <strong>Refresh recommendations</strong> to update them.','warning') ?>
         <?php endif; ?>
 
         <!-- SEARCH -->
@@ -292,7 +292,7 @@ foreach ($state as $key => $value) {
             <?php if (!$rows): ?>
                 <tr><td colspan="5" class="text-center text-muted">
                     <?php if (array_sum($counts) === 0 && $search === ''): ?>
-                        No recommendations yet. Press <strong>Refresh recommendations</strong> to create them from the saved scores.
+                        <p>No recommendations yet. Press </p><strong>Refresh recommendations</strong><p> to create them from the saved scores. </p>
                     <?php else: ?>
                         No recommendation matches your search or filter.
                     <?php endif; ?>

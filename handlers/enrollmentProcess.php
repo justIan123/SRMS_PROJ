@@ -16,6 +16,7 @@ $by         = ($_POST['by'] ?? '') === 'student' ? 'student' : 'subject';
 $subjectId  = (int)($_POST['subject_id'] ?? 0);
 $studentId  = (int)($_POST['student_id'] ?? 0);
 $gradeLevel = trim($_POST['grade_level'] ?? '');
+$search     = trim($_POST['search'] ?? '');
 
 // a list of ids from the form (enrolled[] / shown[]), integers only
 $idList = function (string $key): array {
@@ -138,6 +139,7 @@ $_GET = [
     'subject_id'  => $subjectId,
     'student_id'  => $studentId,
     'grade_level' => $gradeLevel,
+    'search'      => $search,
 ];
 
 require_once(COMPONENTS_PATH . DS . "manage_enrollments.php");

@@ -14,10 +14,11 @@ $search = trim($_GET['search'] ?? '');
 
 // ---- sort (only a key of $headers can ever reach the SQL) ----
 $headers = [
-    'id'            => 'ID',
-    'fname'         => 'First name',
-    'lname'         => 'Last name',
-    'grade_level'   => 'Grade',
+    'id' => 'ID',
+    'fname' => 'First name',
+    'lname' => 'Last name',
+    'mnmae' => "Middle name",
+    'grade_level' => 'Grade',
     'guardian_name' => 'Parent / Guardian',
     'status' => 'Status',
 ];
@@ -251,6 +252,7 @@ $state = [
                     <td><?= $r['id'] ?></td>
                     <td><?= htmlspecialchars($r['fname']) ?></td>
                     <td><?= htmlspecialchars($r['lname']) ?></td>
+                    <td><?= htmlspecialchars($r['mname']) ?></td>
                     <td><?= htmlspecialchars($r['grade_level'] ?? '') ?></td>
                     <td class="<?= $parentClass ?>"><?= htmlspecialchars($parentName) ?></td>
                     <td>
@@ -309,7 +311,7 @@ $state = [
                                 <button class="dropdown-item"
                                         hx-post="<?= $handler ?>"
                                         hx-vals='<?= postValues($state, ["action" => "status", "id" => $r["id"], "status" => "INACTIVE"]) ?>'
-                                        hx-confirm="Set student to Transferred?">
+                                        hx-confirm="Set student to Inactive?">
                                     Inactive
                                 </button>
                             </li>
@@ -332,8 +334,24 @@ $state = [
                             value="<?= htmlspecialchars($r['fname']) ?>" required></td>
                     <td><input form="<?= $formId ?>" name="lname" class="form-control form-control-sm"
                             value="<?= htmlspecialchars($r['lname']) ?>" required></td>
-                    <td><input form="<?= $formId ?>" name="grade_level" class="form-control form-control-sm"
-                            value="<?= htmlspecialchars($r['grade_level'] ?? '') ?>"></td>
+                    <td><input form="<?= $formId ?>" name="mname" class="form-control form-control-sm"
+                            value="<?= htmlspecialchars($r['mname']) ?>" required></td>
+                    <td>
+                        <select form="<?= $formId ?>" name="grade_level" class="form-control form-control-sm">
+                            <option value="" disabled <?= empty($r['grade_level']) ? 'selected' : '' ?>>
+                                Select Grade Level
+                            </option>
+
+                            <option value="Preschool" <?= ($r['grade_level'] ?? '') === 'Preschool' ? 'selected' : '' ?>>Preschool</option>
+                            <option value="Kindergarten" <?= ($r['grade_level'] ?? '') === 'Kindergarten' ? 'selected' : '' ?>>Kindergarten</option>
+                            <option value="Grade 1" <?= ($r['grade_level'] ?? '') === 'Grade 1' ? 'selected' : '' ?>>Grade 1</option>
+                            <option value="Grade 2" <?= ($r['grade_level'] ?? '') === 'Grade 2' ? 'selected' : '' ?>>Grade 2</option>
+                            <option value="Grade 3" <?= ($r['grade_level'] ?? '') === 'Grade 3' ? 'selected' : '' ?>>Grade 3</option>
+                            <option value="Grade 4" <?= ($r['grade_level'] ?? '') === 'Grade 4' ? 'selected' : '' ?>>Grade 4</option>
+                            <option value="Grade 5" <?= ($r['grade_level'] ?? '') === 'Grade 5' ? 'selected' : '' ?>>Grade 5</option>
+                            <option value="Grade 6" <?= ($r['grade_level'] ?? '') === 'Grade 6' ? 'selected' : '' ?>>Grade 6</option>
+                        </select>
+                    </td>
                     <td class="<?= $parentClass ?>"><?= htmlspecialchars($parentName) ?></td>
                     <td class="text-nowrap">
                         <button form="<?= $formId ?>" class="btn btn-sm btn-success">Save</button>

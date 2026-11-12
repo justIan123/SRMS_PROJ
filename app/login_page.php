@@ -51,7 +51,12 @@ $message = $_GET['message'] ?? '';
                     </div>
                     <div class="mb-3">
                         <label class="form-label" for="formPassword">Password</label>
-                        <input name="password" class="form-control" type="password" placeholder="Password" minlength="8" required/>
+                        <div class="input-group">
+                            <input name="password" class="form-control" type="password" placeholder="Password" minlength="8" id="password" required/>
+                            <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                            Show
+                            </button>
+                        </div>
                     </div>
                     <div class="mb-3">
                         <?= renderAlert((!empty($err) ? $err: ""), "warning") ?>
@@ -114,3 +119,18 @@ $message = $_GET['message'] ?? '';
 
 </body>
 </html>
+
+<script>
+    // to enable to show password
+    document.getElementById("togglePassword").addEventListener("click", function () {
+        const password = document.getElementById("password");
+
+        if (password.type === "password") {
+            password.type = "text";
+            this.textContent = "Hide";
+        } else {
+            password.type = "password";
+            this.textContent = "Show";
+        }
+    });
+</script>

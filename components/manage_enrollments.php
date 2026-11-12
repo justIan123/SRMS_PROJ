@@ -10,11 +10,12 @@ $self = COMPONENTS_URL . 'manage_enrollments.php';
 
 // ---- state of the page ----
 // by = "subject": pick a subject, tick the students (can be narrowed to one grade level)
-// by = "student": pick a student, tick the subjects
+// by = "student": search for a student, tick the subjects
 $by         = ($_GET['by'] ?? '') === 'student' ? 'student' : 'subject';
 $subjectId  = (int)($_GET['subject_id'] ?? 0);
 $studentId  = (int)($_GET['student_id'] ?? 0);
 $gradeLevel = trim($_GET['grade_level'] ?? '');
+$search     = trim($_GET['search'] ?? '');   // text typed in the student search box (By student only)
 
 try {
     // Everything belongs to the current school year
@@ -92,6 +93,41 @@ try {
 }
 
 $enrolledShown = count(array_filter($rows, fn($r) => isset($enrolled[$r[0]])));
+
+// ---- student search (By student only) ----
+// A student matches when every word typed appears in their first or last name.
+// Case is ignored and the order of the words doesn't matter, so "juan santos",
+// "santos juan" and "Santos, Juan" all find the same student.
+$maxResults     = 15;     // never list more than this many matches
+$searchWords    = preg_split('/[\s,]+/', mb_strtolower($search), -1, PREG_SPLIT_NO_EMPTY);
+$isSearching    = $by === 'student' && $searchWords !== [];
+$searchResults  = [];     // the matching students, listed under the search box
+$hasMoreResults = false;  // true when there were more matches than $maxResults
+
+if ($isSearching) {
+    foreach ($students as $candidate) {
+        $fullName = mb_strtolower($candidate['fname'] . ' ' . $candidate['lname']);
+
+        // check every typed word against the name
+        $matchesAllWords = true;
+        foreach ($searchWords as $word) {
+            if (mb_strpos($fullName, $word) === false) {
+                $matchesAllWords = false;
+                break;
+            }
+        }
+        if (!$matchesAllWords) {
+            continue;   // not a match, look at the next student
+        }
+
+        // it is a match, but stop once the list is full
+        if (count($searchResults) >= $maxResults) {
+            $hasMoreResults = true;
+            break;
+        }
+        $searchResults[] = $candidate;
+    }
+}
 ?>
 
 <div hx-boost="true" hx-target="#main" hx-push-url="false" hx-indicator="#global-spinner, #main">
@@ -115,11 +151,12 @@ $enrolledShown = count(array_filter($rows, fn($r) => isset($enrolled[$r[0]])));
 
     <?php else: ?>
 
-        <!-- PICK (reloads when a dropdown changes; the button is for when JavaScript is off) -->
-        <form method="get" action="<?= $self ?>" hx-get="<?= $self ?>" hx-trigger="change, submit" class="mb-4 d-flex gap-2 flex-wrap">
-            <input type="hidden" name="by" value="<?= $by ?>">
+        <?php if ($by === 'subject'): ?>
 
-            <?php if ($by === 'subject'): ?>
+            <!-- PICK (reloads when a dropdown changes; the button is for when JavaScript is off) -->
+            <form method="get" action="<?= $self ?>" hx-get="<?= $self ?>" hx-trigger="change, submit" class="mb-4 d-flex gap-2 flex-wrap">
+                <input type="hidden" name="by" value="subject">
+
                 <select name="subject_id" class="form-select w-auto" aria-label="Subject">
                     <option value="">-- Select a subject --</option>
                     <?php foreach ($subjects as $id => $name): ?>
@@ -132,19 +169,66 @@ $enrolledShown = count(array_filter($rows, fn($r) => isset($enrolled[$r[0]])));
                         <option value="<?= htmlspecialchars($gl) ?>" <?= $gl === $gradeLevel ? 'selected' : '' ?>><?= htmlspecialchars($gl) ?></option>
                     <?php endforeach; ?>
                 </select>
-            <?php else: ?>
-                <select name="student_id" class="form-select w-auto" aria-label="Student">
-                    <option value="">-- Select a student --</option>
-                    <?php foreach ($students as $s): ?>
-                        <option value="<?= $s['id'] ?>" <?= (int)$s['id'] === $studentId ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($s['lname'] . ', ' . $s['fname']) ?><?= ($s['grade_level'] ?? '') !== '' ? ' (' . htmlspecialchars($s['grade_level']) . ')' : '' ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            <?php endif; ?>
 
-            <button class="btn btn-outline-primary">Open</button>
-        </form>
+                <button class="btn btn-outline-primary">Open</button>
+            </form>
+
+        <?php else: ?>
+
+            <!-- SEARCH A STUDENT
+                 hx-trigger: search after a 300 ms pause in typing, or when Enter is pressed
+                 hx-target / hx-select / hx-swap: replace only the #student-results list below, so the cursor stays in the box
+                 hx-sync: if you keep typing, the older request is cancelled
+                 Without JavaScript the Search button submits the form as a normal page request. -->
+            <form method="get" action="<?= $self ?>" class="mb-3"
+                  hx-get="<?= $self ?>" hx-trigger="input delay:300ms, submit"
+                  hx-target="#student-results" hx-select="#student-results" hx-swap="outerHTML"
+                  hx-sync="this:replace" hx-indicator="#global-spinner">
+                <input type="hidden" name="by" value="student">
+                <!-- keeps the chosen student highlighted in the list while you type -->
+                <input type="hidden" name="student_id" value="<?= $studentId ?>">
+
+                <div class="input-group" style="max-width: 28rem;">
+                    <input type="search" name="search" value="<?= htmlspecialchars($search) ?>" class="form-control"
+                           placeholder="Search student by name..." aria-label="Search student"
+                           autocomplete="off" <?= $student ? '' : 'autofocus' ?>>
+                    <button class="btn btn-outline-primary">Search</button>
+                </div>
+            </form>
+
+            <!-- the students that match what was typed -->
+            <div id="student-results">
+
+                <?php if ($isSearching && !$searchResults): ?>
+                    <p class="text-muted">No student matches &ldquo;<?= htmlspecialchars($search) ?>&rdquo;.</p>
+                <?php endif; ?>
+
+                <?php if ($searchResults): ?>
+                    <div class="list-group mb-2" style="max-width: 28rem;">
+                        <?php foreach ($searchResults as $result): ?>
+                            <?php
+                            $isSelected = (int)$result['id'] === $studentId;
+                            $resultUrl  = $self . '?' . http_build_query(['by' => 'student', 'student_id' => $result['id'], 'search' => $search]);
+                            ?>
+                            <a href="<?= htmlspecialchars($resultUrl) ?>"
+                               class="list-group-item list-group-item-action d-flex justify-content-between align-items-center <?= $isSelected ? 'active' : '' ?>"
+                               <?= $isSelected ? 'aria-current="true"' : '' ?>>
+                                <span><?= htmlspecialchars($result['lname'] . ', ' . $result['fname']) ?></span>
+                                <?php if (($result['grade_level'] ?? '') !== ''): ?>
+                                    <small class="<?= $isSelected ? '' : 'text-muted' ?>"><?= htmlspecialchars($result['grade_level']) ?></small>
+                                <?php endif; ?>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+
+                    <?php if ($hasMoreResults): ?>
+                        <p class="text-muted small">Showing the first <?= $maxResults ?> matches. Type more of the name to narrow it down.</p>
+                    <?php endif; ?>
+                <?php endif; ?>
+
+            </div>
+
+        <?php endif; ?>
 
         <?php if ($by === 'subject' && $subject === null): ?>
 
@@ -152,7 +236,7 @@ $enrolledShown = count(array_filter($rows, fn($r) => isset($enrolled[$r[0]])));
 
         <?php elseif ($by === 'student' && !$student): ?>
 
-            <p class="text-muted">Select a student to choose which subjects they take.</p>
+            <p class="text-muted">Search for a student to choose which subjects they take.</p>
 
         <?php elseif (!$rows): ?>
 
@@ -176,6 +260,7 @@ $enrolledShown = count(array_filter($rows, fn($r) => isset($enrolled[$r[0]])));
                 <input type="hidden" name="subject_id" value="<?= $subjectId ?>">
                 <input type="hidden" name="student_id" value="<?= $studentId ?>">
                 <input type="hidden" name="grade_level" value="<?= htmlspecialchars($gradeLevel) ?>">
+                <input type="hidden" name="search" value="<?= htmlspecialchars($search) ?>">
 
                 <table class="table table-sm w-auto align-middle">
                     <tr>

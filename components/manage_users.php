@@ -115,32 +115,45 @@ $state = [
             </div>
 
             <div class="col-12 col-md">
-                <input name="phone" placeholder="Phone"
-                    class="form-control">
+                <input name="mname" placeholder="Middle name"
+                    class="form-control" required>
             </div>
         </div>
 
         <!-- Account information -->
         <div class="row g-2 mb-2">
             <div class="col-12 col-md">
+                <input name="phone" placeholder="Phone" type="text" maxlength="11" placeholder="09XXXXXXXXX" value="<?= htmlspecialchars($r['phone'] ?? '') ?>" oninput="this.value=this.value.replace(/[^0-9]/g,'')"
+                    class="form-control">
+            </div>
+
+            <div class="col-12 col-md">
                 <input name="username" type="text"
                     placeholder="Username" class="form-control">
             </div>
 
+        </div>
+        <div class="row g-2 mb-2">
             <div class="col-12 col-md">
                 <input name="email" type="email"
                     placeholder="Email" class="form-control" required>
             </div>
 
             <div class="col-12 col-md">
-                <input name="password" type="password"
-                    placeholder="Password" class="form-control" required>
+                <div class="input-group">
+                    <input name="password" class="form-control" type="password" id="password"
+                    placeholder="Password" minlength="8" required>
+
+                    <button class="btn btn-outline-secondary" type="button" id="togglePassword">
+                        Show
+                    </button>
+                </div>
             </div>
         </div>
 
         <!-- Role and button -->
         <div class="row g-2">
-            <div class="col-12 col-md-4">
+            <!-- <div class="col-12 col-md-4">
                 <select name="assignRole" class="form-select" required>
                     <?php foreach ($roleOptions as $opt): ?>
                         <option value="<?= $opt['role_id'] ?>">
@@ -148,10 +161,16 @@ $state = [
                         </option>
                     <?php endforeach; ?>
                 </select>
-            </div>
+            </div> -->
+            <select name="assignRole" class="form-select" hidden required>
+                <option value="3">
+                    Teacher
+                </option>
+            </select>
 
-        <div class="col-12 col-md-auto ms-auto d-grid">
-            <button class="btn btn-primary">Create User</button>
+            <div class="col-12 col-md-auto">
+                <button class="btn btn-primary">Create User</button>
+            </div>
         </div>
     </form>
 
@@ -295,17 +314,20 @@ $state = [
                         <td><input class="form-control form-control-sm" form="<?= $formId ?>" name="fname" value="<?= htmlspecialchars($r['fname']) ?>" required></td>
                         <td><input class="form-control form-control-sm" form="<?= $formId ?>" name="lname" value="<?= htmlspecialchars($r['lname']) ?>" required></td>
                         <td><input class="form-control form-control-sm" form="<?= $formId ?>" name="mname" value="<?= htmlspecialchars($r['mname']) ?>" required></td>
-                        <td><input class="form-control form-control-sm" form="<?= $formId ?>" name="phone" value="<?= htmlspecialchars($r['phone'] ?? '') ?>"></td>
-                        <td><input class="form-control form-control-sm" form="<?= $formId ?>" name="username" value="<?= htmlspecialchars($r['username'] ?? '') ?>"></td>
+                        <td><input class="form-control form-control-sm" form="<?= $formId ?>" name="phone" type="text" maxlength="11" placeholder="09XXXXXXXXX" value="<?= htmlspecialchars($r['phone'] ?? '') ?>" oninput="this.value=this.value.replace(/[^0-9]/g,'')" value="<?= htmlspecialchars($r['phone'] ?? '') ?>"></td>
+                        <td><?= htmlspecialchars($r['username' ?? ''])?></td>
                         <td><?= htmlspecialchars($r['email'] ?? '') ?></td>
                         <td>
-                            <select class="form-select" form="<?= $formId ?>" name="assignRole">
+                            <!-- <select class="form-select" form="<?= $formId ?>" name="assignRole">
                                 <option value="">--</option>
                                 <?php foreach ($roleOptions as $opt): ?>
                                     <option value="<?= $opt['role_id'] ?>" <?= $opt['role'] === $r['roles'] ? 'selected' : '' ?>><?= htmlspecialchars(ucfirst($opt['role'])) ?></option>
                                 <?php endforeach; ?>
-                            </select>
+                            </select> -->
+                            <?= htmlspecialchars($r['roles'] ?? 'NONE') ?>
                         </td>
+                        <td>
+                            <?= renderStatusBadge($r['is_active'] ?? '') ?>
                         <td>
                             <button form="<?= $formId ?>" class="btn btn-sm btn-success">Save</button>
                             <!-- Cancel swaps back and clears what was typed, no request is sent -->
@@ -336,5 +358,23 @@ $state = [
             row.classList.add('d-none');
             otherRow.classList.remove('d-none');
         }
+        // to enable to show password
+        document.getElementById("togglePassword").addEventListener("click", function () {
+            const password = document.getElementById("password");
+
+            if (password.type === "password") {
+                password.type = "text";
+                this.textContent = "Hide";
+            } else {
+                password.type = "password";
+                this.textContent = "Show";
+            }
+        });
     </script>
 </div>
+
+
+
+<script>
+
+</script>

@@ -106,8 +106,13 @@ $state = [
         <!-- Contact information -->
         <div class="row g-2">
             <div class="col-12 col-md-5">
-                <input name="phone" placeholder="Phone"
-                    class="form-control">
+            <!-- phone format google or idk -->
+            <input type="text"
+            name="phone"
+            maxlength="11"
+            placeholder="09XXXXXXXXX"
+            class="form-control"
+            oninput="this.value=this.value.replace(/[^0-9]/g,'')">
             </div>
 
             <div class="col-12 col-md-5">
@@ -252,8 +257,8 @@ $state = [
                     <td><input form="<?= $formId ?>" name="fname" value="<?= htmlspecialchars($r['fname']) ?>" required></td>
                     <td><input form="<?= $formId ?>" name="lname" value="<?= htmlspecialchars($r['lname']) ?>" required></td>
                     <td><input form="<?= $formId ?>" name="mname" value="<?= htmlspecialchars($r['mname']) ?>" required></td>
-                    <td><input form="<?= $formId ?>" name="phone" value="<?= htmlspecialchars($r['phone'] ?? '') ?>"></td>
-                    <td><input form="<?= $formId ?>" name="email" value="<?= htmlspecialchars($r['email'] ?? '') ?>"></td>
+                    <td><input type="text" form="<?= $formId ?>" name="phone"  maxlength="11" placeholder="09XXXXXXXXX" value="<?= htmlspecialchars($r['phone'] ?? '') ?>" oninput="this.value=this.value.replace(/[^0-9]/g,'')"></td>
+                    <td><label><?= htmlspecialchars($r['email']) ?></label></td>
                     <td>
                         <?= renderStatusBadge(htmlspecialchars($r['is_active'] ?? '')) ?>
                     </td>
