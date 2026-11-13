@@ -65,6 +65,9 @@ $message = $_GET['message'] ?? '';
                     <div class="mb-3">
                         <button class="btn btn-primary" type="submit">Login</button>
                     </div>
+                    <div>
+                        <a href="forgot_password.php">Forgot password?</a>
+                    </div>
                     <!-- <div class="mb-1 text-center">
                         <label class="form-label"></label>
                         <a href="register_page">sdfsdfsdf</a>

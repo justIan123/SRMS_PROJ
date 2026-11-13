@@ -103,3 +103,29 @@ DETAIL:  Key (user_role_id)=(4) already exists.
 [2026-11-07 05:30:40] SQLSTATE[21000]: General error: 7 ERROR:  UPDATE requires a WHERE clause
 [2026-11-12 08:44:25] SQLSTATE[08006]: General error: 7 ERROR:  Could not reach Supabase: file C:\xampp\htdocs\1_SRMS\config/cacert.pem: Could not resolve host: your-project.supabase.co | The HTTPS certificate bundle is missing or unreadable. Download https://curl.se/ca/cacert.pem and save it as cacert.pem in C:\xampp\htdocs\1_SRMS\config (or set SUPABASE_CA_BUNDLE in .env to its full path).
 [2026-11-12 08:44:36] SQLSTATE[08006]: General error: 7 ERROR:  Could not reach Supabase: file C:\xampp\htdocs\1_SRMS\config/cacert.pem: Could not resolve host: your-project.supabase.co | The HTTPS certificate bundle is missing or unreadable. Download https://curl.se/ca/cacert.pem and save it as cacert.pem in C:\xampp\htdocs\1_SRMS\config (or set SUPABASE_CA_BUNDLE in .env to its full path).
+[2026-11-12 17:34:55] sendEmail Brevo HTTP 401: {"message":"Key not found","code":"unauthorized"}
+
+[2026-11-12 17:38:36] sendEmail Brevo HTTP 401: {"message":"Key not found","code":"unauthorized"}
+
+[2026-11-12 17:40:11] sendEmail Brevo HTTP 401: {"message":"Key not found","code":"unauthorized"}
+
+[2026-11-12 17:42:31] sendEmail Brevo HTTP 401: {"message":"Key not found","code":"unauthorized"}
+
+[2026-11-12 17:47:48] sendEmail Brevo HTTP 401: {"message":"Key not found","code":"unauthorized"}
+
+[2026-11-12 17:49:29] sendEmail Brevo HTTP 401: {"message":"Key not found","code":"unauthorized"}
+
+[2026-11-12 17:51:42] sendEmail Brevo HTTP 401: {"message":"Key not found","code":"unauthorized"}
+
+[2026-11-13 15:41:19] sendEmail Brevo HTTP 401: {"message":"Key not found","code":"unauthorized"}
+
+[2026-11-13 15:58:56] sendEmail Brevo HTTP 401: {"message":"Key not found","code":"unauthorized"}
+
+[2026-11-13 16:00:47] sendEmail Brevo HTTP 401: {"message":"Key not found","code":"unauthorized"}
+
+[2026-11-13 16:04:59] sendEmail Brevo HTTP 401: {"message":"Key not found","code":"unauthorized"}
+
+[2026-11-13 16:09:10] sendEmail Brevo HTTP 401: {"message":"We have detected you are using an unrecognised IP address 2001:fd8:2140:31d0:edae:58e7:54c3:6120. If you performed this action make sure to add the new IP address in this link: https://app.brevo.com/security/authorised_ips","code":"unauthorized"}
+
+[2026-11-13 16:11:22] sendEmail Brevo HTTP 401: {"message":"We have detected you are using an unrecognised IP address 2001:fd8:2140:31d0:edae:58e7:54c3:6120. If you performed this action make sure to add the new IP address in this link: https://app.brevo.com/security/authorised_ips","code":"unauthorized"}
+
