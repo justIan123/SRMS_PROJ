@@ -1,4 +1,3 @@
-<!-- https://github.com/justIan123/bootstrap-dashboard-template -->
 <?php
 require_once("../config/initialize.php");
 
@@ -7,6 +6,7 @@ require_once(FUNCTIONS_PATH . DS . "renderFunctions.php");
 require_once(INCLUDE_PATH . DS . "auth.php");
 
 ?>
+<!-- https://github.com/justIan123/bootstrap-dashboard-template -->
 
 <!-- https://github.com/justIan123/bootstrap-dashboard-template -->
 <!DOCTYPE html>
