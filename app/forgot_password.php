@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->commit();
 
                 // ---- send the email through Brevo's HTTP API (InfinityFree blocks PHP mail()) ----
-                $link = APP_URL . 'reset_password.php?token=' . $resetToken;
+                $link = 'https://srms-sr-wip.site.je/app/reset_password.php?token=' . $resetToken;
                 $name = ($user['fname'] && $user['fname'] !== 'NONE') ? $user['fname'] : $user['username'];
 
                 $html = '<p>Hi ' . $e($name) . ',</p>'
